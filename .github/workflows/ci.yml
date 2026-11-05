@@ -1,105 +1,216 @@
-# Telugu Pickles CI — test -> build & push 7 images to ECR -> bump tags in gitops/ -> ArgoCD deploys
+# App CI — Telugu Pickles
 #
-# Required GitHub secrets (Settings -> Secrets and variables -> Actions):
-#   AWS_ROLE_ARN            preferred: IAM role trusted for GitHub OIDC (no long-lived keys)
-#   -- or, simpler for demos --
-#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY   for an IAM user with ECR push rights
-name: Telugu Pickles CI
+#   security ─┐
+#   test ─────┼─> build (7 images in parallel) ─> deploy
+#   aws ──────┘    build -> Trivy image scan       update gitops/kustomization.yml
+#                  -> push to ECR (main only)      -> Argo CD sees the commit and rolls out
+#
+# GitHub settings needed (see docs/CICD-EKS-GUIDE.md):
+#   secret   AWS_ROLE_ARN   IAM role from projects/Infrastructure/bootstrap (OIDC, no keys)
+#   variable AWS_REGION     optional, default us-east-1
+# Without AWS_ROLE_ARN the pipeline still tests, builds and scans, then skips push/deploy.
+name: App CI
 
 on:
   push:
     branches: [main]
     paths:
-      - "projects/telugu-pickles/**"   # gitops/ is NOT listed -> the bot's tag commit can't loop the pipeline
+      - "projects/telugu-pickles/**"
+      - ".github/workflows/ci.yml"
+      # gitops/ is NOT listed: the bot's tag-bump commit must not re-trigger this pipeline
+  pull_request:
+    paths:
+      - "projects/telugu-pickles/**"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
-env:
-  AWS_REGION: us-east-1
-  IMAGE_TAG: ${{ github.sha }}
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: app-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  IMAGE_TAG: ${{ github.sha }}
+  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+  TRIVY_DB: public.ecr.aws/aquasecurity/trivy-db:2
+  # push + deploy only for main (push or manual run), never for pull requests
+  RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
 
 jobs:
+  security:
+    name: Security scan
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
+
   test:
+    name: Unit tests + frontend build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            projects/telugu-pickles/services/package-lock.json
+            projects/telugu-pickles/frontend/package-lock.json
       - name: Backend unit tests
         working-directory: projects/telugu-pickles/services
-        run: npm ci && npm test
+        run: npm ci --no-audit --no-fund && npm test
       - name: Frontend production build
         working-directory: projects/telugu-pickles/frontend
-        run: npm ci && npm run build
+        run: npm ci --no-audit --no-fund && npm run build
 
-  build-and-push:
-    needs: test
+  aws:
+    name: AWS access check
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # for GitHub OIDC -> AWS
+      id-token: write
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+      registry: ${{ steps.registry.outputs.registry }}
+    steps:
+      - id: check
+        env:
+          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -n "$ROLE" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=AWS not configured::Add the AWS_ROLE_ARN secret to push images to ECR and deploy. Build + scans still run."
+          fi
+      - if: steps.check.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: registry
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "registry=${account}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build · scan · push (${{ matrix.service }})
+    needs: [security, test, aws]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         service: [frontend, gateway, auth-service, catalog-service, cart-service, order-service, payment-service]
+    env:
+      LOCAL_IMAGE: telugu-pickles/${{ matrix.service }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Login to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build and push ${{ matrix.service }}
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: projects/telugu-pickles/${{ matrix.service == 'frontend' && 'frontend' || 'services' }}
           build-args: SERVICE=${{ matrix.service }}
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.ecr.outputs.registry }}/telugu-pickles/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          pull: true # always start from the latest patched base image
+          load: true # keep it local: scan BEFORE anything is pushed
+          tags: ${{ env.LOCAL_IMAGE }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  update-manifests:
-    needs: build-and-push
+      - name: Trivy image scan (fail on fixable CRITICAL)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image "$LOCAL_IMAGE" \
+            --db-repository "$TRIVY_DB" --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --exit-code 0 --no-progress
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image "$LOCAL_IMAGE" \
+            --db-repository "$TRIVY_DB" --scanners vuln --severity CRITICAL --ignore-unfixed \
+            --exit-code 1 --quiet
+
+      - name: Configure AWS credentials
+        if: env.RELEASE == 'true' && needs.aws.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Push to Amazon ECR
+        if: env.RELEASE == 'true' && needs.aws.outputs.enabled == 'true'
+        env:
+          REGISTRY: ${{ needs.aws.outputs.registry }}
+          REPO: telugu-pickles/${{ matrix.service }}
+        run: |
+          if ! aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1; then
+            echo "::warning title=ECR repository missing::$REPO does not exist yet. Run the 'Infrastructure' workflow (apply) first, then re-run this workflow."
+            exit 0
+          fi
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+          docker tag "$LOCAL_IMAGE" "$REGISTRY/$REPO:$IMAGE_TAG"
+          docker push "$REGISTRY/$REPO:$IMAGE_TAG"
+          echo "Pushed \`$REGISTRY/$REPO:$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Update gitops/ (Argo CD deploys)
+    needs: [aws, build]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.aws.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # commit the new image tags
+      id-token: write
+    env:
+      REGISTRY: ${{ needs.aws.outputs.registry }}
+      SERVICES: frontend gateway auth-service catalog-service cart-service order-service payment-service
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Point gitops/ at the new images
-        working-directory: gitops
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check every image reached ECR
+        id: images
         run: |
-          for svc in frontend gateway auth-service catalog-service cart-service order-service payment-service; do
-            current=$(grep -A1 "name: telugu-pickles/${svc}$" kustomization.yml | grep newName | awk '{print $2}')
-            kustomize edit set image "telugu-pickles/${svc}=${current}:${IMAGE_TAG}"
+          for svc in $SERVICES; do
+            if ! aws ecr describe-images --repository-name "telugu-pickles/$svc" --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
+              echo "::warning title=Not deploying::telugu-pickles/$svc:$IMAGE_TAG is not in ECR (infrastructure not created yet?). gitops/ left unchanged."
+              echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Point gitops/kustomization.yml at the new images
+        if: steps.images.outputs.ready == 'true'
+        run: |
+          for svc in $SERVICES; do
+            yq -i "(.images[] | select(.name == \"telugu-pickles/${svc}\")) |= (.newName = \"${REGISTRY}/telugu-pickles/${svc}\" | .newTag = \"${IMAGE_TAG}\")" gitops/kustomization.yml
           done
           git diff --stat
 
-      - name: Commit and push (ArgoCD picks this up)
+      - name: Commit and push
+        if: steps.images.outputs.ready == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add gitops/kustomization.yml
-          git diff --staged --quiet && { echo "nothing to commit"; exit 0; }
+          if git diff --staged --quiet; then echo "Images already deployed"; exit 0; fi
           git commit -m "deploy: telugu-pickles ${IMAGE_TAG::7}"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            sleep $((attempt * 5))
+          done
+          {
+            echo "### Deployed \`${IMAGE_TAG::7}\`"
+            echo "Argo CD syncs within ~1 minute. Watch: \`kubectl -n argocd get application telugu-pickles -w\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,3 +1,20 @@
+# Telugu Pickles — AWS platform
+#
+#   vpc       public subnets in 3 AZs (no NAT gateway -> lower cost)
+#   eks       control plane + managed node group + EBS CSI driver, API-mode access entries
+#   ecr       one repository per service
+#   platform  everything installed INTO the cluster: Argo CD (+ the app), Prometheus/Grafana,
+#             AWS Load Balancer Controller, Fluent Bit -> CloudWatch, metrics-server,
+#             app secrets, and (when domain_name is set) ACM + ExternalDNS + HTTPS ingresses.
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  # Role created by ./bootstrap. Always a cluster admin so the pipeline can manage Helm releases.
+  github_actions_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.github_actions_role_name}"
+  cluster_admin_arns      = distinct(concat([local.github_actions_role_arn], var.cluster_admin_arns))
+}
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -8,12 +25,13 @@ module "vpc" {
   cluster_name       = var.cluster_name
 }
 
-
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name    = var.cluster_name
-  node_group_name = var.node_group_name
+  cluster_name       = var.cluster_name
+  kubernetes_version = var.kubernetes_version
+  node_group_name    = var.node_group_name
+  admin_arns         = local.cluster_admin_arns
 
   instance_types = var.instance_types
   capacity_type  = var.capacity_type
@@ -23,7 +41,6 @@ module "eks" {
   max_size       = var.max_size
 
   subnet_ids = module.vpc.subnet_ids
-  depends_on = [module.vpc]
 }
 
 module "ecr" {
@@ -32,37 +49,20 @@ module "ecr" {
   repositories = var.repositories
 }
 
+module "platform" {
+  source = "./modules/platform"
 
-data "aws_eks_cluster_auth" "eks" {
-  name = module.eks.cluster_name
-}
+  region            = var.region
+  cluster_name      = module.eks.cluster_name
+  vpc_id            = module.vpc.vpc_id
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer_url   = module.eks.oidc_issuer_url
 
-provider "kubernetes" {
-  alias                  = "eks"
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  token                  = data.aws_eks_cluster_auth.eks.token
-}
+  gitops_repo_url    = var.gitops_repo_url
+  gitops_revision    = var.gitops_revision
+  domain_name        = var.domain_name
+  log_retention_days = var.log_retention_days
 
-provider "helm" {
-  alias = "eks"
-
-  kubernetes = {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-    token                  = data.aws_eks_cluster_auth.eks.token
-  }
-}
-
-
-module "argocd" {
-  source = "./modules/argocd"
-
-  providers = {
-    kubernetes = kubernetes.eks
-    helm       = helm.eks
-  }
-
+  # Helm/Kubernetes resources need running nodes and admin access first.
   depends_on = [module.eks]
 }
-

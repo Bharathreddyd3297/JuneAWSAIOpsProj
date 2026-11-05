@@ -586,7 +586,7 @@ docker compose up -d --build        <span class="c"># 10 containers</span>
         <li>Fixes the boutique bug where <code>sed</code> searched for the real account ID while manifests held a placeholder, so tags never changed.</li>
       </ul>
     </div>
-    <div class="card"><h3 style="margin-top:0">Argo CD Application (<code>gitops/argo-cd.yml</code>)</h3>
+    <div class="card"><h3 style="margin-top:0">Argo CD Application (created by Terraform, <code>modules/platform</code>)</h3>
       <ul class="check">
         <li>Watches <code>main</code> / <code>gitops/</code>; <code>automated: {prune, selfHeal}</code>.</li>
         <li><code>ServerSideApply</code> for the large Grafana dashboard ConfigMap.</li>
@@ -699,37 +699,29 @@ docker compose up -d --build        <span class="c"># 10 containers</span>
 <!-- 17 -->
 <section id="runbook">
   <h2>Runbook: zero to demo</h2>
+  <p>Full student walkthrough with screenshots-worth of detail: <code>docs/CICD-EKS-GUIDE.md</code>. Local only: <code>projects/telugu-pickles/LOCAL-SETUP.md</code>.</p>
   <ol class="steps">
-    <li><b>Run locally</b> (step-by-step for students: <code>projects/telugu-pickles/LOCAL-SETUP.md</code>)
+    <li><b>Run locally</b>
 <pre><code>cd projects/telugu-pickles
-docker compose up -d --build &amp;&amp; ./scripts/smoke-test.sh</code></pre></li>
-    <li><b>Create ECR + push images</b> <span class="pill b">repos exist · images removed 2026-11-05 to save cost, re-push before EKS</span>
-<pre><code>cd projects/Infrastructure
-terraform init
-terraform plan -target=module.ecr -out=ecr.tfplan &amp;&amp; terraform apply ecr.tfplan
-../telugu-pickles/scripts/push-to-ecr.sh 1.0.0</code></pre></li>
-    <li><b>Create the EKS platform</b> (≈ 20 min). On Windows, add the Helm repos once first (the Helm provider needs the local cache):
-<pre><code>helm repo add argo https://argoproj.github.io/argo-helm
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
-terraform plan -out=eks.tfplan        <span class="c"># expect: 26 to add, 0 change, 0 destroy</span>
-terraform apply eks.tfplan
-aws eks update-kubeconfig --region us-east-1 --name telugu-pickles-eks
-kubectl get nodes</code></pre></li>
-    <li><b>Deploy (first time, without GitHub)</b>
-<pre><code>kubectl apply --server-side -k gitops/
-kubectl -n telugu-pickles get pods -w
-kubectl -n telugu-pickles get svc frontend    <span class="c"># EXTERNAL-IP = store URL</span>
-projects/telugu-pickles/scripts/smoke-test.sh http://&lt;EXTERNAL-IP&gt;</code></pre></li>
-    <li><b>Turn on GitOps</b>: push this repository to GitHub, set <code>repoURL</code> in <code>gitops/argo-cd.yml</code>, add the AWS secrets to the repository, then
-<pre><code>kubectl apply -f gitops/argo-cd.yml
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-kubectl -n argocd port-forward svc/argocd-server 8443:443</code></pre></li>
-    <li><b>Logs to CloudWatch</b>: install <code>aws-for-fluent-bit</code> with <code>cloudWatch.logGroupName=/eks/telugu-pickles/pods</code>, and grant the node role <code>CloudWatchAgentServerPolicy</code>.</li>
+docker compose up -d --build &amp;&amp; ./scripts/smoke-test.sh      <span class="c"># 25 passed</span></code></pre></li>
+    <li><b>Bootstrap (laptop, once)</b>: S3 state bucket + GitHub OIDC role (+ Route 53 zone when a domain is set)
+<pre><code>cd projects/Infrastructure/bootstrap
+terraform init &amp;&amp; terraform apply
+terraform output github_actions_role_arn</code></pre></li>
+    <li><b>GitHub</b>: Settings → Secrets and variables → Actions → secret <code>AWS_ROLE_ARN</code> = the role ARN. That is the only secret.</li>
+    <li><b>git push</b> → <em>Infrastructure</em> workflow: Gitleaks + Trivy → <code>terraform plan</code> → <code>terraform apply</code>
+      (VPC, EKS 1.35, ECR, Argo CD, kube-prometheus-stack, AWS Load Balancer Controller, Fluent Bit → CloudWatch, app Secret, Argo CD Application) ≈ 30 min.</li>
+    <li><b>App CI</b> (runs on app changes, or <em>Run workflow</em>): tests → build 7 images → Trivy image gate → push <code>:&lt;git-sha&gt;</code> to ECR → bot commits tags to <code>gitops/kustomization.yml</code>.</li>
+    <li><b>Argo CD</b> syncs within ~60 s:
+<pre><code>aws eks update-kubeconfig --name telugu-pickles-eks --region us-east-1
+kubectl -n argocd get application telugu-pickles          <span class="c"># Synced / Healthy</span>
+kubectl -n telugu-pickles get ingress frontend            <span class="c"># ADDRESS = shop URL (http://)</span>
+kubectl -n argocd port-forward svc/argocd-server 8081:80
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3001:80</code></pre></li>
+    <li><b>CloudWatch</b>: <code>aws logs tail /eks/telugu-pickles/pods --follow</code>; alarm <code>telugu-pickles-error-spike</code> on metric <code>TeluguPickles/AppErrorCount</code>.</li>
+    <li><b>Domain (optional)</b>: set <code>domain_name</code> in bootstrap → GoDaddy nameservers → set <code>domain_name</code> in <code>terraform.tfvars</code> → push → https://shop./argocd./grafana.&lt;domain&gt; (ACM + ExternalDNS).</li>
     <li><b>AIOps</b>: <code>setup-iam.sh</code> → create 3 Lambdas → set <code>PROMETHEUS_URL</code> → <code>deploy.sh</code> → <code>streamlit run app.py</code>, then run the scenarios in section 14.</li>
-    <li><b>Tear down</b>
-<pre><code>kubectl delete -k gitops/                 <span class="c"># removes the load balancer first</span>
-cd projects/Infrastructure &amp;&amp; terraform destroy</code></pre></li>
+    <li><b>Tear down</b>: Actions → Infrastructure → Run workflow → <code>destroy</code> (confirm "destroy"). It runs <code>scripts/pre-destroy.sh</code> first so the ALB and EBS volume are not orphaned.</li>
   </ol>
 </section>
 

@@ -44,3 +44,13 @@ variable "disk_size" {
   type        = number
   default     = 20
 }
+
+variable "kubernetes_version" {
+  description = "EKS Kubernetes version"
+  type        = string
+}
+
+variable "admin_arns" {
+  description = "IAM principals granted AmazonEKSClusterAdminPolicy"
+  type        = list(string)
+}

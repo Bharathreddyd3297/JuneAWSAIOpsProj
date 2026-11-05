@@ -4,6 +4,7 @@
 
 > **The demo app is Telugu Pickles (తెలుగు పచ్చళ్ళు)**, an Indian veg & non-veg pickle store built as 6 microservices + React.
 > - Run it on your laptop: [`projects/telugu-pickles/LOCAL-SETUP.md`](projects/telugu-pickles/LOCAL-SETUP.md)
+> - Deploy it to AWS EKS with GitHub Actions + Argo CD: [`docs/CICD-EKS-GUIDE.md`](docs/CICD-EKS-GUIDE.md)
 > - How it is designed, built and deployed: [`docs/telugu-pickles-system-design.html`](docs/telugu-pickles-system-design.html) (open in a browser)
 
 ---
@@ -37,6 +38,7 @@ By the end of this series, you won't just know tools — you'll understand how r
 ```
 devops-ai-playbook/
 ├── docs/
+│   ├── CICD-EKS-GUIDE.md          # Student guide: git push -> GitHub Actions -> EKS -> Argo CD -> Grafana
 │   ├── telugu-pickles-system-design.html  # End-to-end system design (open in browser)
 │   ├── part1-system-design.md     # System design foundations (Part 1)
 │   ├── part2-workflow.md          # Full workflow with AIOps (Part 2)
@@ -45,14 +47,17 @@ devops-ai-playbook/
 │   ├── telugu-pickles/            # The application: 6 services + React frontend (Part 3)
 │   │   ├── LOCAL-SETUP.md         #   Student guide: run it on your laptop
 │   │   └── docker-compose.yml     #   Local stack incl. Prometheus + Grafana
-│   ├── Infrastructure/            # Terraform: VPC, EKS, ECR, Argo CD, monitoring
+│   ├── Infrastructure/            # Terraform: VPC, EKS, ECR, Argo CD, Grafana, CloudWatch, DNS
+│   │   └── bootstrap/             #   one-time: S3 state bucket + GitHub OIDC role (+ Route 53 zone)
 │   └── aiops-assistant/           # Bedrock Agent — Kira (Part 4)
 ├── gitops/
-│   ├── argo-cd.yml                # ArgoCD Application manifest
-│   ├── kustomization.yml          # Kustomize entry point
+│   ├── kustomization.yml          # Kustomize entry point (Argo CD deploys this; CI bumps image tags)
 │   └── k8s/                       # All Kubernetes manifests
-└── .github/
-    └── workflows/ci.yml           # GitHub Actions CI pipeline
+├── scripts/                       # helm-repos.sh, pre-destroy.sh
+└── .github/workflows/
+    ├── security.yml               # Gitleaks + Trivy (secrets, CVEs, IaC)
+    ├── infra.yml                  # Terraform plan/apply/destroy
+    └── ci.yml                     # test -> build -> scan -> push ECR -> update gitops/
 ```
 
 ---
@@ -158,9 +163,11 @@ Once you implement the project:
 | Containers | Docker, Docker Compose |
 | Orchestration | Kubernetes (AWS EKS) |
 | Infrastructure | Terraform |
-| CI/CD | GitHub Actions |
+| CI/CD | GitHub Actions (OIDC to AWS, no stored keys) |
+| Security scanning | Gitleaks + Trivy |
+| DNS / TLS | Route 53 + ACM (GoDaddy domain delegated) |
 | GitOps | ArgoCD + Kustomize |
 | Monitoring | Prometheus + Grafana |
-| Log Forwarding | AWS Fluent Bit → CloudWatch |
+| Log Forwarding | AWS Fluent Bit → CloudWatch Logs (+ metric filter & alarm) |
 | AIOps | AWS Bedrock Agent (Kira) |
 | AI Assistant | Claude Code + MCP Servers |

@@ -39,3 +39,7 @@ dist/
 
 # Terraform plans
 *.tfplan
+
+# Terraform local overrides (never commit)
+*_override.tf
+*_override.tf.json

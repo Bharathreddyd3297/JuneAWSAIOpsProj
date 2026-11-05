@@ -9,8 +9,9 @@ subnets = [
   { name = "subnet-3", cidr_block = "10.1.3.0/24", availability_zone = "us-east-1c" },
 ]
 
-cluster_name    = "telugu-pickles-eks"
-node_group_name = "telugu-pickles-nodes"
+cluster_name       = "telugu-pickles-eks"
+kubernetes_version = "1.35"
+node_group_name    = "telugu-pickles-nodes"
 
 # m7i-flex.large = 2 vCPU / 8 GiB, max 29 pods per node.
 # App (10) + ArgoCD (7) + monitoring (7) + kube-system (~11) = ~35 pods -> needs 2 nodes.
@@ -30,3 +31,25 @@ repositories = [
   "telugu-pickles/order-service",
   "telugu-pickles/payment-service",
 ]
+
+# ---- Access -------------------------------------------------------------------
+# The GitHub Actions role (from ./bootstrap) is always a cluster admin.
+# EDIT: add YOUR IAM user/role so kubectl works from your laptop.
+#   Find it with:  aws sts get-caller-identity --query Arn --output text
+cluster_admin_arns = [
+  "arn:aws:iam::229378727493:user/terraform-user",
+]
+
+# ---- GitOps -------------------------------------------------------------------
+# EDIT for your fork: Argo CD deploys gitops/ from this repository + branch.
+gitops_repo_url = "https://github.com/Bharathreddyd3297/JuneAWSAIOpsProj.git"
+gitops_revision = "main"
+
+# ---- DNS (optional) -----------------------------------------------------------
+# "" = shop served on the AWS load balancer hostname (HTTP), Argo CD/Grafana via port-forward.
+# Set to your GoDaddy domain AFTER the bootstrap created the Route 53 zone and GoDaddy
+# nameservers point to it -> https://shop.<domain>, https://argocd.<domain>, https://grafana.<domain>
+domain_name = ""
+
+# ---- CloudWatch ---------------------------------------------------------------
+log_retention_days = 7

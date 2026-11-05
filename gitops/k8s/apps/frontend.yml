@@ -46,8 +46,6 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
 ---
-# Public entry point. On EKS this provisions an AWS load balancer in the
-# public subnets (tagged kubernetes.io/role/elb=1 by Terraform).
 apiVersion: v1
 kind: Service
 metadata:
@@ -57,10 +55,41 @@ metadata:
     app: frontend
     app.kubernetes.io/part-of: telugu-pickles
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: frontend
   ports:
     - name: http
       port: 80
       targetPort: http
+---
+# Public entry point: the AWS Load Balancer Controller turns this into an
+# internet-facing Application Load Balancer in the public subnets.
+# No host rule -> works on the ALB's own hostname. When a domain is configured,
+# Terraform's Argo CD Application patches in shop.<domain> + HTTPS (ACM).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: telugu-pickles
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: telugu-pickles
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: telugu-pickles
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

@@ -1,0 +1,16 @@
+# Gitleaks configuration: the default ruleset + a small, explicit allowlist.
+# Only add entries here for values that are PUBLIC BY DESIGN (documented demo
+# logins, placeholders). Never allowlist a real credential — rotate it instead.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented demo values and generated files"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)\.terraform\.lock\.hcl$''',
+]
+regexes = [
+  '''Pickle@123''',                 # public demo shopper login (shown on the login page)
+  '''local-dev-secret-change-me''', # docker-compose default for local runs only
+]

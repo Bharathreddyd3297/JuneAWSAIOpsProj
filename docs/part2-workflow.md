@@ -178,7 +178,7 @@ sequenceDiagram
 - Every deployment is auditable — it's just a Git commit
 
 **Key files:**
-- `gitops/argo-cd.yml` — registers the repo and branch with ArgoCD
+- Argo CD Application (Terraform, `modules/platform/main.tf`) — registers the repo and branch with ArgoCD
 - `gitops/kustomization.yml` — lists all Kubernetes resources to apply
 - `gitops/k8s/` — all service deployments, services, database, secrets
 
@@ -319,7 +319,7 @@ flowchart TD
 | `projects/telugu-pickles/docker-compose.yml` | Stage 1 | Local stack |
 | `.github/workflows/ci.yml` | Stage 3 | Build and push images |
 | `projects/Infrastructure/` | Stage 4 | Terraform for AWS |
-| `gitops/argo-cd.yml` | Stage 5 | ArgoCD application definition |
+| `projects/Infrastructure/modules/platform/main.tf` | Stage 5 | Argo CD install + Application definition |
 | `gitops/k8s/` | Stage 5 | All Kubernetes manifests |
 | `gitops/k8s/backend/service-monitor.yml` | Stage 6 | Prometheus scrape config |
 | `gitops/k8s/grafana-dashboard.yml` | Stage 6 | Pre-loaded Grafana dashboard |

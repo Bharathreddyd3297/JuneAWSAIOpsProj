@@ -265,4 +265,4 @@ docker compose logs --tail=50
 
 Once it runs locally, the same images go to the cloud:
 **push to Amazon ECR → create EKS with Terraform → deploy with Argo CD → AIOps with Bedrock**.
-The full walkthrough is in [docs/telugu-pickles-system-design.html](../../docs/telugu-pickles-system-design.html) (open it in a browser).
+Step-by-step: [docs/CICD-EKS-GUIDE.md](../../docs/CICD-EKS-GUIDE.md). Architecture: [docs/telugu-pickles-system-design.html](../../docs/telugu-pickles-system-design.html) (open it in a browser).

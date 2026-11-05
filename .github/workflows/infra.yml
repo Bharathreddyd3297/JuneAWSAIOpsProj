@@ -1,0 +1,233 @@
+# Infrastructure — Terraform in GitHub Actions
+#
+#   pull request          -> security scan + terraform plan (shown in the run summary)
+#   push to main          -> security scan + plan + APPLY      (creates/updates VPC, EKS, ECR, Argo CD, ...)
+#   Run workflow (manual) -> choose plan | apply | destroy      (destroy needs confirm = "destroy")
+#
+# State lives in S3 (bucket from projects/Infrastructure/bootstrap), shared with your laptop.
+# GitHub settings needed (see docs/CICD-EKS-GUIDE.md):
+#   secret   AWS_ROLE_ARN      IAM role from bootstrap (OIDC)
+#   variable AWS_REGION        optional, default us-east-1
+#   variable TF_STATE_BUCKET   optional, default telugu-pickles-tfstate-<account id>
+name: Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/Infrastructure/**"
+      - "!projects/Infrastructure/bootstrap/**" # bootstrap is laptop-only
+      - ".github/workflows/infra.yml"
+  pull_request:
+    paths:
+      - "projects/Infrastructure/**"
+      - "!projects/Infrastructure/bootstrap/**"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to do"
+        type: choice
+        options: [plan, apply, destroy]
+        default: plan
+      confirm:
+        description: 'Type "destroy" to confirm a destroy'
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.repository }} # never two Terraform runs at once
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  TF_VERSION: "1.16.6"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_DIR: projects/Infrastructure
+
+jobs:
+  security:
+    name: Security scan
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  plan:
+    name: Terraform plan
+    needs: security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - id: check
+        working-directory: .
+        env:
+          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -n "$ROLE" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=AWS not configured::Add the AWS_ROLE_ARN secret (see docs/CICD-EKS-GUIDE.md). Skipping Terraform."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.enabled == 'true'
+
+      - uses: hashicorp/setup-terraform@v3
+        if: steps.check.outputs.enabled == 'true'
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.check.outputs.enabled == 'true'
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform init
+        if: steps.check.outputs.enabled == 'true'
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          # Helm provider needs the chart repos in the local Helm cache ("no cached repo found" otherwise)
+          ../../scripts/helm-repos.sh
+          bucket="${TF_STATE_BUCKET:-telugu-pickles-tfstate-$(aws sts get-caller-identity --query Account --output text)}"
+          terraform init -backend-config="bucket=${bucket}"
+
+      - name: terraform fmt + validate
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          terraform fmt -check -recursive
+          terraform validate
+
+      - name: terraform plan
+        if: steps.check.outputs.enabled == 'true'
+        run: |
+          terraform plan -lock-timeout=10m -no-color -out=tfplan | tee plan.txt
+          {
+            echo "### Terraform plan"
+            echo '```'
+            grep -E "^Plan:|^No changes|will be (created|destroyed|replaced)|must be replaced" plan.txt | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Terraform apply
+    needs: plan
+    if: >-
+      needs.plan.outputs.enabled == 'true' && (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+      )
+    runs-on: ubuntu-latest
+    environment: production # add "Required reviewers" here in GitHub to get a manual approval gate
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 7200 # first EKS create + Helm installs take ~30 min
+
+      - name: terraform init
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          # Helm provider needs the chart repos in the local Helm cache ("no cached repo found" otherwise)
+          ../../scripts/helm-repos.sh
+          bucket="${TF_STATE_BUCKET:-telugu-pickles-tfstate-$(aws sts get-caller-identity --query Account --output text)}"
+          terraform init -backend-config="bucket=${bucket}"
+
+      # Plan files contain generated passwords, so the plan is re-created here instead of
+      # being uploaded as an artifact (artifacts of a public repo are downloadable).
+      - name: terraform apply
+        run: |
+          terraform plan -lock-timeout=10m -out=tfplan
+          terraform apply -lock-timeout=10m tfplan
+
+      - name: Summary
+        run: |
+          cluster=$(terraform output -raw cluster_name)
+          aws eks update-kubeconfig --name "$cluster" --region "$AWS_REGION" >/dev/null
+          shop=""
+          for _ in $(seq 1 20); do
+            shop=$(kubectl -n telugu-pickles get ingress frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+            [ -n "$shop" ] && break; sleep 15
+          done
+          {
+            echo "### Infrastructure ready"
+            echo "| | |"; echo "|---|---|"
+            echo "| Cluster | \`$cluster\` (${AWS_REGION}) |"
+            echo "| kubectl | \`$(terraform output -raw kubeconfig_command)\` |"
+            echo "| Shop | ${shop:+http://$shop}${shop:-waiting for Argo CD / images — run App CI, then: kubectl -n telugu-pickles get ingress} |"
+            echo "| Argo CD app | \`$(kubectl -n argocd get application telugu-pickles -o jsonpath='{.status.sync.status} / {.status.health.status}' 2>/dev/null)\` |"
+            echo "| CloudWatch logs | \`$(terraform output -raw app_log_group)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  destroy:
+    name: Terraform destroy
+    needs: plan
+    if: >-
+      needs.plan.outputs.enabled == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'destroy' && inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 7200
+
+      - name: terraform init
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          # Helm provider needs the chart repos in the local Helm cache ("no cached repo found" otherwise)
+          ../../scripts/helm-repos.sh
+          bucket="${TF_STATE_BUCKET:-telugu-pickles-tfstate-$(aws sts get-caller-identity --query Account --output text)}"
+          terraform init -backend-config="bucket=${bucket}"
+
+      # The ALB (from the Ingress) and the Postgres EBS volume (from the PVC) are created by
+      # controllers inside the cluster, not by Terraform. Remove them while the controllers
+      # still run, otherwise they are orphaned and block the VPC deletion / keep costing money.
+      - name: Remove Kubernetes-created AWS resources
+        run: ../../scripts/pre-destroy.sh "$(terraform output -raw cluster_name 2>/dev/null || echo telugu-pickles-eks)" "$AWS_REGION"
+
+      - name: terraform destroy
+        run: terraform destroy -auto-approve -lock-timeout=10m

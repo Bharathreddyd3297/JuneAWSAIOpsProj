@@ -25,7 +25,15 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.34"
+  version  = var.kubernetes_version
+
+  # API mode: who may use kubectl is managed with EKS access entries (below),
+  # not the aws-auth ConfigMap. The creator gets NO implicit admin, so access is
+  # identical whether the laptop or GitHub Actions created the cluster.
+  access_config {
+    authentication_mode                         = "API"
+    bootstrap_cluster_creator_admin_permissions = false
+  }
 
   vpc_config {
     subnet_ids              = var.subnet_ids
@@ -153,6 +161,25 @@ resource "aws_eks_addon" "ebs_csi" {
   service_account_role_arn = aws_iam_role.ebs_csi_irsa.arn
 
   depends_on = [
-    aws_iam_role_policy_attachment.ebs_csi_irsa_policy
+    aws_iam_role_policy_attachment.ebs_csi_irsa_policy,
+    aws_eks_node_group.node_group, # the add-on only becomes ACTIVE once nodes exist
   ]
+}
+
+# Cluster admins (GitHub Actions role + your laptop user)
+resource "aws_eks_access_entry" "admins" {
+  for_each      = toset(var.admin_arns)
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = each.value
+}
+
+resource "aws_eks_access_policy_association" "admins" {
+  for_each      = aws_eks_access_entry.admins
+  cluster_name  = aws_eks_cluster.eks.name
+  principal_arn = each.value.principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
 }

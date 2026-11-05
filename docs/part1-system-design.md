@@ -310,7 +310,7 @@ Someone SSH's into a production server and makes a manual change. Three months l
 
 **The audit trail:** Every change is a Git commit — who made it, when, why, and what exactly changed. Rolling back is a `git revert`. The entire history of your infrastructure is in version control.
 
-**In this project:** The entire Kubernetes configuration lives in `gitops/k8s/`. The `argo-cd.yml` Application manifest tells ArgoCD to watch the `main` branch. Push a change — ArgoCD deploys it. Change an image tag — ArgoCD rolls it out. The cluster always reflects what's in Git.
+**In this project:** The entire Kubernetes configuration lives in `gitops/k8s/`. The Argo CD Application (created by Terraform in `projects/Infrastructure/modules/platform`) tells ArgoCD to watch the `main` branch. Push a change — ArgoCD deploys it. Change an image tag — ArgoCD rolls it out. The cluster always reflects what's in Git.
 
 ---
 
