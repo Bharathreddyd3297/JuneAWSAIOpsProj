@@ -44,6 +44,8 @@ observability/       Prometheus config + Grafana provisioning & dashboard
 scripts/             smoke-test.sh, push-to-ecr.sh, build-dashboard.js
 ```
 
+**Deploy to AWS EKS** (GitHub Actions + Terraform + Argo CD): [`docs/CICD-EKS-GUIDE.md`](../../docs/CICD-EKS-GUIDE.md).
+
 Kubernetes manifests live in [`/gitops`](../../gitops), Terraform in [`/projects/Infrastructure`](../Infrastructure),
 CI in [`/.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 
