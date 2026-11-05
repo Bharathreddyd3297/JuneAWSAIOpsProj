@@ -8,6 +8,8 @@ This guide continues from [running the app locally](../projects/telugu-pickles/L
 - You open the shop, Argo CD and the Grafana dashboards.
 
 **Time:** about 1 hour 15 minutes the first time, of which about 30 minutes is waiting for EKS.
+Reference docs (what each pipeline, resource and Argo CD setting does): [docs/reference/](reference/README.md)
+
 **Cost:** about **$0.35 per hour** while the cluster exists. [Destroy it](#step-11--destroy-everything-stop-the-bill) when you finish.
 
 ---
