@@ -75,8 +75,14 @@ aws sts get-caller-identity        # note the "Arn": you need it in Step 1
 2. **`projects/Infrastructure/bootstrap/terraform.tfvars`**
    ```hcl
    github_repository           = "<you>/<repo>"   # exactly as on GitHub
+   github_owner_id             = "<owner id>"     # numbers, see below
+   github_repository_id        = "<repo id>"
    create_github_oidc_provider = true             # false only if your AWS account already has it
    domain_name                 = ""               # keep empty for now
+   ```
+   GitHub's login token names your repo by **numeric IDs** (`repo:you@123/repo@456:...`). Get yours (public API, no login):
+   ```bash
+   curl -s https://api.github.com/repos/<you>/<repo> | python -c "import sys,json;r=json.load(sys.stdin);print('owner id:',r['owner']['id'],' repo id:',r['id'])"
    ```
    To check whether the GitHub provider already exists, run `aws iam list-open-id-connect-providers`. If you see `token.actions.githubusercontent.com`, set it to `false`.
 3. **`projects/Infrastructure/terraform.tfvars`**
@@ -374,7 +380,7 @@ docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.30.1 git /repo --config 
 
 | Symptom | Cause → fix |
 |---|---|
-| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | `github_repository` in bootstrap tfvars doesn't match your repo exactly, or the secret holds the wrong ARN. Fix it, re-apply the bootstrap, re-run. |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The role doesn't trust the identity GitHub sent. Check `github_repository`, `github_owner_id` and `github_repository_id` in bootstrap tfvars, and that the secret holds the right ARN. To see exactly what GitHub sent: `aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity --max-results 3`; the `userName` field is the `sub` claim. Fix it, re-apply the bootstrap, re-run. |
 | `Error acquiring the state lock` | Another plan or apply is running (laptop or GitHub). Wait. If one crashed, run `terraform force-unlock <ID>` once. |
 | `no cached repo found` (Helm) on your laptop | Run `./scripts/helm-repos.sh` once. |
 | `kubectl`: `You must be logged in to the server (Unauthorized)` | Your IAM ARN isn't in `cluster_admin_arns`. Add it, push, and the Infrastructure workflow grants access. |

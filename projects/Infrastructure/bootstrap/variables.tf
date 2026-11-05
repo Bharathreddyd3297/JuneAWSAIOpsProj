@@ -31,3 +31,15 @@ variable "domain_name" {
   type        = string
   default     = ""
 }
+
+variable "github_owner_id" {
+  description = "Numeric GitHub user/org ID (pins the OIDC trust). Find it: curl -s https://api.github.com/repos/OWNER/REPO | grep -m1 '\"id\"' under owner, or see docs/CICD-EKS-GUIDE.md"
+  type        = string
+  default     = ""
+}
+
+variable "github_repository_id" {
+  description = "Numeric GitHub repository ID (pins the OIDC trust)"
+  type        = string
+  default     = ""
+}

@@ -99,6 +99,20 @@ data "aws_iam_openid_connect_provider" "github" {
 
 locals {
   github_oidc_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+
+  # GitHub's token "sub" claim comes in two formats:
+  #   classic:   repo:OWNER/REPO:ref:refs/heads/main
+  #   immutable: repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main   (newer repos/accounts)
+  # The immutable form is pinned to the numeric IDs when they are given, so a deleted and
+  # re-registered account or repo with the same name can NOT assume this role.
+  gh_owner = split("/", var.github_repository)[0]
+  gh_repo  = split("/", var.github_repository)[1]
+  github_subjects = [
+    "repo:${var.github_repository}:*",
+    var.github_owner_id != "" && var.github_repository_id != ""
+    ? "repo:${local.gh_owner}@${var.github_owner_id}/${local.gh_repo}@${var.github_repository_id}:*"
+    : "repo:${local.gh_owner}@*/${local.gh_repo}@*:*",
+  ]
 }
 
 resource "aws_iam_role" "github_actions" {
@@ -115,7 +129,7 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
         # Only workflows from THIS repository (any branch / PR) can assume the role.
-        StringLike = { "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*" }
+        StringLike = { "token.actions.githubusercontent.com:sub" = local.github_subjects }
       }
     }]
   })
