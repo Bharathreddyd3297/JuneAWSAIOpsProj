@@ -1,0 +1,105 @@
+# Telugu Pickles CI — test -> build & push 7 images to ECR -> bump tags in gitops/ -> ArgoCD deploys
+#
+# Required GitHub secrets (Settings -> Secrets and variables -> Actions):
+#   AWS_ROLE_ARN            preferred: IAM role trusted for GitHub OIDC (no long-lived keys)
+#   -- or, simpler for demos --
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY   for an IAM user with ECR push rights
+name: Telugu Pickles CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/telugu-pickles/**"   # gitops/ is NOT listed -> the bot's tag commit can't loop the pipeline
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_TAG: ${{ github.sha }}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Backend unit tests
+        working-directory: projects/telugu-pickles/services
+        run: npm ci && npm test
+      - name: Frontend production build
+        working-directory: projects/telugu-pickles/frontend
+        run: npm ci && npm run build
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # for GitHub OIDC -> AWS
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [frontend, gateway, auth-service, catalog-service, cart-service, order-service, payment-service]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: projects/telugu-pickles/${{ matrix.service == 'frontend' && 'frontend' || 'services' }}
+          build-args: SERVICE=${{ matrix.service }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/telugu-pickles/${{ matrix.service }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  update-manifests:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Point gitops/ at the new images
+        working-directory: gitops
+        run: |
+          for svc in frontend gateway auth-service catalog-service cart-service order-service payment-service; do
+            current=$(grep -A1 "name: telugu-pickles/${svc}$" kustomization.yml | grep newName | awk '{print $2}')
+            kustomize edit set image "telugu-pickles/${svc}=${current}:${IMAGE_TAG}"
+          done
+          git diff --stat
+
+      - name: Commit and push (ArgoCD picks this up)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gitops/kustomization.yml
+          git diff --staged --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "deploy: telugu-pickles ${IMAGE_TAG::7}"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -1,0 +1,94 @@
+# catalog-service — Pickle catalogue + stock
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: telugu-pickles
+  labels:
+    app: catalog-service
+    app.kubernetes.io/name: catalog-service
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: catalog-service
+  template:
+    metadata:
+      labels:
+        app: catalog-service
+        app.kubernetes.io/name: catalog-service
+        app.kubernetes.io/part-of: telugu-pickles
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: catalog-service
+          image: telugu-pickles/catalog-service   # real ECR URI + tag is set in kustomization.yml (images:)
+          ports:
+            - name: http
+              containerPort: 4002
+          envFrom:
+            - configMapRef:
+                name: telugu-pickles-config
+            - secretRef:
+                name: telugu-pickles-secrets
+          env:
+            - name: PORT
+              value: "4002"
+            - name: DB_NAME
+              value: catalog_db
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 256Mi
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 3
+            failureThreshold: 40
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 20
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: telugu-pickles
+  labels:
+    app: catalog-service
+    app.kubernetes.io/name: catalog-service
+    app.kubernetes.io/part-of: telugu-pickles
+    metrics: enabled
+spec:
+  type: ClusterIP
+  selector:
+    app: catalog-service
+  ports:
+    - name: http
+      port: 4002
+      targetPort: http

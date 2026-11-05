@@ -1,0 +1,30 @@
+# ArgoCD Application: watches gitops/ on main and keeps EKS in sync with Git.
+# 1. Push this repository to GitHub.
+# 2. Replace repoURL below with your repository URL.
+# 3. kubectl apply -f gitops/argo-cd.yml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: telugu-pickles
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CHANGE-ME/devops-ai-playbook.git
+    targetRevision: main
+    path: gitops
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telugu-pickles
+  syncPolicy:
+    automated:
+      prune: true      # delete what was removed from Git
+      selfHeal: true   # undo manual kubectl changes (Git is the source of truth)
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # large Grafana dashboard ConfigMap exceeds client-side annotation limit
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

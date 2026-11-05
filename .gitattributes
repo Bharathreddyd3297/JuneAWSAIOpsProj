@@ -1,0 +1,6 @@
+# Keep Unix line endings for scripts and container files, even on Windows clones
+*.sh       text eol=lf
+*.conf     text eol=lf
+*.template text eol=lf
+Dockerfile text eol=lf
+*.png binary

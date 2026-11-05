@@ -1,0 +1,26 @@
+{
+  "name": "telugu-pickles-services",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend microservices for Telugu Pickles (gateway, auth, catalog, cart, order, payment)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "start:gateway": "node gateway/src/index.js",
+    "start:auth": "node auth-service/src/index.js",
+    "start:catalog": "node catalog-service/src/index.js",
+    "start:cart": "node cart-service/src/index.js",
+    "start:order": "node order-service/src/index.js",
+    "start:payment": "node payment-service/src/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "http-proxy-middleware": "^3.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "prom-client": "^15.1.3"
+  }
+}

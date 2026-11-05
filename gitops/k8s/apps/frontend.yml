@@ -1,0 +1,66 @@
+# frontend — React SPA served by nginx; nginx proxies /api to the gateway.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: telugu-pickles
+  labels:
+    app: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: telugu-pickles
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          image: telugu-pickles/frontend
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: GATEWAY_URL
+              value: http://gateway:8080
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+# Public entry point. On EKS this provisions an AWS load balancer in the
+# public subnets (tagged kubernetes.io/role/elb=1 by Terraform).
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: telugu-pickles
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,73 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Telugu Pickles Prometheus Metrics",
+    "version": "2.0.0",
+    "description": "Queries Prometheus (kube-prometheus-stack on EKS) for pod, service and business metrics of the Telugu Pickles store."
+  },
+  "paths": {
+    "/fetch_metrics": {
+      "get": {
+        "summary": "Fetch a metric time-series from Prometheus",
+        "description": "Returns current, average and max values over the time window for one predefined metric, broken down by pod or service (app). Use error_rate_percent and latency_p95_seconds for 'is something slow or failing', dependency_errors to see which service cannot reach which dependency, orders_by_status and payments_by_result for checkout problems, and pod_* metrics for resource issues.",
+        "operationId": "fetch_metrics",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "query",
+            "required": true,
+            "description": "Which metric to fetch.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "request_rate",
+                "error_rate_percent",
+                "latency_p95_seconds",
+                "dependency_errors",
+                "orders_by_status",
+                "payments_by_result",
+                "nodejs_event_loop_lag",
+                "pod_cpu_utilization",
+                "pod_memory_utilization",
+                "pod_restarts",
+                "deployment_replicas_unavailable",
+                "deployment_replicas_available"
+              ]
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "description": "Kubernetes namespace. Defaults to telugu-pickles.",
+            "schema": { "type": "string", "default": "telugu-pickles" }
+          },
+          {
+            "name": "hours_back",
+            "in": "query",
+            "required": false,
+            "description": "Hours of history to analyse (1 for a live incident, 6 or 24 for trends).",
+            "schema": { "type": "string", "default": "1" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metric summary per series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" },
+                    "metric": { "type": "string" },
+                    "data": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

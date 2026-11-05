@@ -1,0 +1,59 @@
+# ONE ServiceMonitor scrapes all six backend services: it matches every Service
+# labelled metrics=enabled and part-of=telugu-pickles, on the port named "http".
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: telugu-pickles
+  namespace: telugu-pickles
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: telugu-pickles
+      metrics: enabled
+  namespaceSelector:
+    matchNames: [telugu-pickles]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+# Alerts that the AIOps agent (Kira) can be asked about.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: telugu-pickles-alerts
+  namespace: telugu-pickles
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: telugu-pickles.rules
+      rules:
+        - alert: HighServerErrorRate
+          expr: |
+            100 * sum by (app) (rate(http_requests_total{status_code=~"5.."}[5m]))
+              / clamp_min(sum by (app) (rate(http_requests_total[5m])), 1e-9) > 5
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.app }} 5xx rate above 5%"
+            description: "{{ $labels.app }} is returning {{ $value | humanize }}% server errors."
+        - alert: CheckoutPaymentFailures
+          expr: sum(rate(tp_orders_placed_total{status="PAYMENT_FAILED"}[10m])) > 0.05
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Checkouts are failing at the payment step"
+        - alert: SlowRequestsP95
+          expr: histogram_quantile(0.95, sum by (le, app) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.app }} p95 latency above 1s"
+        - alert: PodRestartingOften
+          expr: increase(kube_pod_container_status_restarts_total{namespace="telugu-pickles"}[30m]) > 3
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.pod }} restarted {{ $value | humanize }} times in 30m"

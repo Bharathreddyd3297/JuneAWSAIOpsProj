@@ -1,0 +1,77 @@
+# Single PostgreSQL 16 instance; each microservice creates and owns its own
+# database inside it at startup (database-per-service, no init scripts needed).
+# Production upgrade path: Amazon RDS for PostgreSQL / Aurora (just change PGHOST).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: telugu-pickles
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: telugu-pickles
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/part-of: telugu-pickles
+    spec:
+      # The official image starts as root only to chown PGDATA, then drops to the postgres user.
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: telugu-pickles-secrets, key: PGUSER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: telugu-pickles-secrets, key: PGPASSWORD } }
+            # sub-directory avoids the "lost+found" problem on fresh EBS volumes
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          readinessProbe:
+            exec: { command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""] }
+            periodSeconds: 5
+          livenessProbe:
+            exec: { command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\""] }
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 10Gi

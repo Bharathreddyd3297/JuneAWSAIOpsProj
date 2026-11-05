@@ -1,0 +1,171 @@
+# Telugu Pickles — local environment
+#   docker compose up -d --build
+#   Shop:        http://localhost:3000
+#   Gateway API: http://localhost:8080/api/health
+#   Prometheus:  http://localhost:9090
+#   Grafana:     http://localhost:3001   (admin / admin)
+name: telugu-pickles
+
+x-node-service: &node-service
+  build:
+    context: ./services
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  networks: [backend]
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+x-db-env: &db-env
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGUSER: ${POSTGRES_USER:-postgres}
+  PGPASSWORD: ${POSTGRES_PASSWORD:-pickles123}
+  JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me}
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pickles123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  auth-service:
+    <<: *node-service
+    image: telugu-pickles/auth-service:local
+    container_name: tp-auth
+    build: { context: ./services, args: { SERVICE: auth-service } }
+    environment:
+      <<: *db-env
+      PORT: "4001"
+      DB_NAME: auth_db
+
+  catalog-service:
+    <<: *node-service
+    image: telugu-pickles/catalog-service:local
+    container_name: tp-catalog
+    build: { context: ./services, args: { SERVICE: catalog-service } }
+    environment:
+      <<: *db-env
+      PORT: "4002"
+      DB_NAME: catalog_db
+
+  cart-service:
+    <<: *node-service
+    image: telugu-pickles/cart-service:local
+    container_name: tp-cart
+    build: { context: ./services, args: { SERVICE: cart-service } }
+    environment:
+      <<: *db-env
+      PORT: "4003"
+      DB_NAME: cart_db
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+
+  order-service:
+    <<: *node-service
+    image: telugu-pickles/order-service:local
+    container_name: tp-order
+    build: { context: ./services, args: { SERVICE: order-service } }
+    depends_on:   # replaces the anchor's list, so postgres is repeated here
+      postgres:
+        condition: service_healthy
+      payment-service:
+        condition: service_started
+    environment:
+      <<: *db-env
+      PORT: "4004"
+      DB_NAME: orders_db
+      CART_SERVICE_URL: http://cart-service:4003
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      PAYMENT_SERVICE_URL: http://payment-service:4005
+
+  payment-service:
+    <<: *node-service
+    image: telugu-pickles/payment-service:local
+    container_name: tp-payment
+    build: { context: ./services, args: { SERVICE: payment-service } }
+    environment:
+      <<: *db-env
+      PORT: "4005"
+      DB_NAME: payments_db
+      # AIOps demo: set to e.g. 0.5 to make half of UPI/Card payments fail
+      PAYMENT_DECLINE_RATE: ${PAYMENT_DECLINE_RATE:-0}
+      PAYMENT_LATENCY_MS: ${PAYMENT_LATENCY_MS:-0}
+
+  gateway:
+    <<: *node-service
+    image: telugu-pickles/gateway:local
+    container_name: tp-gateway
+    build: { context: ./services, args: { SERVICE: gateway } }
+    depends_on: [auth-service, catalog-service, cart-service, order-service]
+    environment:
+      PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me}
+      AUTH_SERVICE_URL: http://auth-service:4001
+      CATALOG_SERVICE_URL: http://catalog-service:4002
+      CART_SERVICE_URL: http://cart-service:4003
+      ORDER_SERVICE_URL: http://order-service:4004
+      PAYMENT_SERVICE_URL: http://payment-service:4005
+    ports:
+      - "8080:8080"
+    networks: [backend, frontend]
+
+  frontend:
+    build: ./frontend
+    image: telugu-pickles/frontend:local
+    container_name: tp-frontend
+    environment:
+      GATEWAY_URL: http://gateway:8080
+    depends_on: [gateway]
+    ports:
+      - "3000:80"
+    networks: [frontend]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: tp-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks: [backend]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: tp-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/telugu-pickles.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on: [prometheus]
+    networks: [backend]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
+  frontend:

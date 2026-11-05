@@ -1,0 +1,22 @@
+# Non-secret configuration shared by all backend services.
+# Service discovery is plain Kubernetes DNS: http://<service-name>:<port>
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telugu-pickles-config
+  namespace: telugu-pickles
+data:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  PGHOST: postgres
+  PGPORT: "5432"
+  AUTH_SERVICE_URL: http://auth-service:4001
+  CATALOG_SERVICE_URL: http://catalog-service:4002
+  CART_SERVICE_URL: http://cart-service:4003
+  ORDER_SERVICE_URL: http://order-service:4004
+  PAYMENT_SERVICE_URL: http://payment-service:4005
+  # ---- AIOps demo fault injection (0 = off). Change, commit, let ArgoCD sync. ----
+  PAYMENT_DECLINE_RATE: "0"
+  PAYMENT_LATENCY_MS: "0"
+  CHAOS_ERROR_RATE: "0"
+  CHAOS_LATENCY_MS: "0"

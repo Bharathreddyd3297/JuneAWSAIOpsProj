@@ -1,0 +1,66 @@
+# Telugu Pickles — everything ArgoCD deploys to EKS.
+#   Preview:  kubectl kustomize gitops/
+#   Apply:    kubectl apply -k gitops/        (ArgoCD does this for you)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - k8s/platform/namespace.yml
+  - k8s/platform/config.yml
+  - k8s/database/postgres.yml
+  - k8s/apps/auth-service.yml
+  - k8s/apps/catalog-service.yml
+  - k8s/apps/cart-service.yml
+  - k8s/apps/order-service.yml
+  - k8s/apps/payment-service.yml
+  - k8s/apps/gateway.yml
+  - k8s/apps/frontend.yml
+  - k8s/apps/autoscaling.yml
+  - k8s/monitoring/servicemonitor.yml
+
+# DEMO credentials. For production move these to AWS Secrets Manager and sync
+# them with the External Secrets Operator (see docs/telugu-pickles-system-design.html).
+secretGenerator:
+  - name: telugu-pickles-secrets
+    namespace: telugu-pickles
+    literals:
+      - PGUSER=postgres
+      - PGPASSWORD=Pickles-Demo-2026
+      - JWT_SECRET=change-me-telugu-pickles-jwt-secret-2026
+
+configMapGenerator:
+  # Grafana's sidecar imports any ConfigMap labelled grafana_dashboard=1
+  - name: telugu-pickles-dashboard
+    namespace: monitoring
+    files:
+      - k8s/monitoring/telugu-pickles-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+# CI rewrites newTag on every build:  kustomize edit set image telugu-pickles/<svc>=<ecr-uri>:<git-sha>
+images:
+  - name: telugu-pickles/frontend
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/frontend
+    newTag: "1.0.0"
+  - name: telugu-pickles/gateway
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
+    newTag: "1.0.0"
+  - name: telugu-pickles/auth-service
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/auth-service
+    newTag: "1.0.0"
+  - name: telugu-pickles/catalog-service
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/catalog-service
+    newTag: "1.0.0"
+  - name: telugu-pickles/cart-service
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/cart-service
+    newTag: "1.0.0"
+  - name: telugu-pickles/order-service
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/order-service
+    newTag: "1.0.0"
+  - name: telugu-pickles/payment-service
+    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/payment-service
+    newTag: "1.0.0"
