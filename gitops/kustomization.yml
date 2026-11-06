@@ -33,22 +33,22 @@ generatorOptions:
 images:
   - name: telugu-pickles/frontend
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/frontend
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/gateway
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/auth-service
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/auth-service
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/catalog-service
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/catalog-service
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/cart-service
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/cart-service
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/order-service
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/order-service
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
   - name: telugu-pickles/payment-service
     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/payment-service
-    newTag: "fa46b0ab06d33f432cc81a3300b464917425a2a8"
+    newTag: "f2ac797312f0b08038ba9ec6fbc5166aa4180f5f"
