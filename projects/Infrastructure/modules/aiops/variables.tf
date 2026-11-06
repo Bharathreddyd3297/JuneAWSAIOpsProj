@@ -29,12 +29,12 @@ variable "alarm_topic_arn" {
 }
 
 variable "supervisor_model" {
-  description = "Bedrock model / inference profile for Kira (the supervisor that reasons and writes the report)"
+  description = "Bedrock inference profile for Kira, the supervisor (reasons, delegates, writes the report)"
   type        = string
 }
 
 variable "specialist_model" {
-  description = "Bedrock model / inference profile for the 3 specialist agents (fast + cheap)"
+  description = "Bedrock inference profile for the logs / metrics / deployment agents (fast + cheap)"
   type        = string
 }
 

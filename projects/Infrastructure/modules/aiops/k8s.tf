@@ -1,10 +1,10 @@
 # =============================================================== Read-only Kubernetes access for the tools
-# IAM role telugu-pickles-aiops-k8s  --(EKS access entry)-->  Kubernetes group "aiops-readers"
+# IAM role telugu-pickles-aiops-kira --(EKS access entry)-->  Kubernetes group "aiops-readers"
 #   --(ClusterRoleBinding)-->  ClusterRole "aiops-reader": get/list only, no secrets, no exec, no changes.
 
 resource "aws_eks_access_entry" "aiops" {
   cluster_name      = var.cluster_name
-  principal_arn     = aws_iam_role.lambda["k8s"].arn
+  principal_arn     = aws_iam_role.kira.arn
   kubernetes_groups = ["aiops-readers"]
   type              = "STANDARD"
 }

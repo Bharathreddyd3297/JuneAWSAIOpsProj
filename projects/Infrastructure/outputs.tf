@@ -32,12 +32,11 @@ output "grafana_admin_password" {
 }
 
 output "aiops" {
-  description = "Kira (Bedrock supervisor agent) - used by projects/aiops-assistant/app.py"
+  description = "Kira (Bedrock multi-agent Lambda) - used by projects/aiops-assistant/app.py"
   value = var.aiops_enabled ? {
-    agent_id         = module.aiops[0].kira_agent_id
-    agent_alias_id   = module.aiops[0].kira_alias_id
+    kira_function    = module.aiops[0].kira_function
     report_topic_arn = module.aiops[0].report_topic_arn
-    incident_lambda  = module.aiops[0].incident_lambda
+    ask_from_cli     = "aws lambda invoke --region ${var.region} --function-name ${module.aiops[0].kira_function} --cli-read-timeout 300 --payload '{\"question\":\"Is everything healthy?\"}' --cli-binary-format raw-in-base64-out out.json"
     chat_ui          = "cd projects/aiops-assistant && pip install -r requirements.txt && streamlit run app.py"
   } : null
 }

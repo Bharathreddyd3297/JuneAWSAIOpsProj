@@ -1,7 +1,6 @@
 """Deployment agent tools — Argo CD, Argo Rollouts and pod health (read-only Kubernetes API)."""
 from datetime import datetime, timedelta, timezone
 
-import agent_io
 import k8s
 
 NS = "telugu-pickles"
@@ -129,15 +128,3 @@ def recent_events(minutes: int = 30, warnings_only: bool = True):
     out.sort(key=lambda x: x["time"] or "", reverse=True)
     return {"minutes": minutes, "events": out[:40]}
 
-
-FUNCTIONS = {
-    "rollout_status": rollout_status,
-    "analysis_runs": analysis_runs,
-    "argocd_status": argocd_status,
-    "pod_status": pod_status,
-    "recent_events": recent_events,
-}
-
-
-def handler(event, _context):
-    return agent_io.handle(event, FUNCTIONS)

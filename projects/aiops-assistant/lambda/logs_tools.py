@@ -10,7 +10,6 @@ import time
 
 import boto3
 
-import agent_io
 
 LOG_GROUP = os.environ["LOG_GROUP"]
 logs = boto3.client("logs", region_name=os.environ.get("AWS_REGION", "us-east-1"))
@@ -66,10 +65,3 @@ def error_summary(minutes: int = 60):
         if str(row.get("last_seen", "")).isdigit():
             row["last_seen"] = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(int(row["last_seen"]) / 1000))
     return {"log_group": LOG_GROUP, "minutes": minutes, "groups": rows}
-
-
-FUNCTIONS = {"search_logs": search_logs, "error_summary": error_summary}
-
-
-def handler(event, _context):
-    return agent_io.handle(event, FUNCTIONS)

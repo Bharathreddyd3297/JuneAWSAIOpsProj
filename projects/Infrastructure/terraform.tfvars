@@ -55,9 +55,13 @@ domain_name = ""
 log_retention_days = 7
 
 # ---- AIOps (Bedrock) ----------------------------------------------------------
-# Models must be enabled for your account: test with
-#   aws bedrock-runtime converse --model-id <id> --messages '[{"role":"user","content":[{"text":"hi"}]}]'
+# Any Bedrock model with tool use works. Test access first:
+#   aws bedrock-runtime converse --region us-east-1 --model-id <id> --messages '[{"role":"user","content":[{"text":"hi"}]}]'
+# Amazon Nova needs no extra approval. Claude needs the one-time Anthropic "use case details" form
+# (Bedrock console -> Model catalog -> any Claude model). After that, better reports:
+#   aiops_supervisor_model = "us.anthropic.claude-sonnet-4-6"
+#   aiops_specialist_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 aiops_enabled          = true
-aiops_supervisor_model = "us.anthropic.claude-sonnet-4-6"
-aiops_specialist_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+aiops_supervisor_model = "us.amazon.nova-pro-v1:0"
+aiops_specialist_model = "us.amazon.nova-lite-v1:0"
 aiops_alert_email      = "" # your email -> incident reports by mail (confirm the AWS subscription mail)

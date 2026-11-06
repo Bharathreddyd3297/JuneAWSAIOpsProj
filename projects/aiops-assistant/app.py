@@ -1,49 +1,28 @@
 """
-AIOps Assistant — Streamlit chat UI for Kira, the Bedrock supervisor agent.
-Kira delegates to three specialist agents (logs, metrics, deployments) created by Terraform
-(projects/Infrastructure/modules/aiops).
+AIOps Assistant — Streamlit chat UI for Kira.
+Kira is a multi-agent AIOps assistant running in AWS Lambda (projects/aiops-assistant/lambda/kira.py):
+a supervisor model delegates to logs, metrics and deployment agents via the Bedrock Converse API.
 
-Run (AWS CLI must be logged in to the account that has the agents):
+Run (the AWS CLI must be logged in to the account where Terraform created the Lambda):
     pip install -r requirements.txt
     streamlit run app.py
 """
 
-import streamlit as st
-import boto3
-import uuid
 import json
 import os
+import uuid
+
+import boto3
+import streamlit as st
+from botocore.config import Config
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 # --- Config ---
 # AWS credentials come from your normal AWS CLI login (aws configure / SSO). No keys in files.
-# The agent is found by name (created by Terraform); set the IDs in .env only to override.
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-AGENT_NAME = os.getenv("BEDROCK_AGENT_NAME", "telugu-pickles-kira")
-AGENT_ID = os.getenv("BEDROCK_AGENT_ID")
-AGENT_ALIAS_ID = os.getenv("BEDROCK_AGENT_ALIAS_ID")
-
-
-def find_agent():
-    """Look up Kira's agent ID and its 'live' alias by name."""
-    client = boto3.client("bedrock-agent", region_name=AWS_REGION)
-    for page in client.get_paginator("list_agents").paginate():
-        for agent in page["agentSummaries"]:
-            if agent["agentName"] == AGENT_NAME:
-                aliases = client.list_agent_aliases(agentId=agent["agentId"])["agentAliasSummaries"]
-                live = [a for a in aliases if a["agentAliasName"] == "live"]
-                return agent["agentId"], (live[0]["agentAliasId"] if live else None)
-    return None, None
-
-
-if not (AGENT_ID and AGENT_ALIAS_ID):
-    try:
-        AGENT_ID, AGENT_ALIAS_ID = find_agent()
-    except Exception as exc:  # no credentials / no permission
-        st.session_state["lookup_error"] = str(exc)
+KIRA_FUNCTION = os.getenv("KIRA_FUNCTION", "telugu-pickles-kira")
 
 
 # --- Page Config ---
@@ -172,11 +151,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Validate Config ---
-# Access keys optional: boto3 uses ~/.aws/credentials, SSO, env, or IAM role if unset.
-config_ok = bool(AGENT_ID and AGENT_ALIAS_ID)
-
-
 # --- Initialize Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -184,41 +158,39 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
 
-# --- Bedrock Agent Client ---
+# --- Lambda client ---
 @st.cache_resource
-def get_bedrock_client():
-    from botocore.config import Config
-    # multi-agent investigations can take 1-2 minutes
-    return boto3.client("bedrock-agent-runtime", region_name=AWS_REGION,
-                        config=Config(read_timeout=300, retries={"max_attempts": 1}))
+def get_lambda_client():
+    # an investigation with three specialists can take up to ~2 minutes
+    return boto3.client("lambda", region_name=AWS_REGION,
+                        config=Config(read_timeout=310, retries={"max_attempts": 0}))
 
 
-def invoke_agent(prompt: str) -> tuple[str, list]:
-    """Send a message to Kira. Returns (answer, [specialist agents / tools she used])."""
-    client = get_bedrock_client()
+@st.cache_data(ttl=60, show_spinner=False)
+def kira_status():
+    """Returns (ok, detail): is the Kira Lambda there, and which models does it use?"""
     try:
-        response = client.invoke_agent(
-            agentId=AGENT_ID,
-            agentAliasId=AGENT_ALIAS_ID,
-            sessionId=st.session_state.session_id,
-            inputText=prompt,
-            enableTrace=True,  # lets us show which specialist agents were consulted
+        cfg = get_lambda_client().get_function_configuration(FunctionName=KIRA_FUNCTION)
+        env = cfg.get("Environment", {}).get("Variables", {})
+        return True, f"{env.get('SUPERVISOR_MODEL', '?')} + {env.get('SPECIALIST_MODEL', '?')}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def ask_kira(prompt: str) -> dict:
+    """Invoke the Kira Lambda with the question and the earlier chat turns."""
+    history = [{"role": m["role"], "text": m["content"]} for m in st.session_state.messages[:-1][-10:]]
+    try:
+        resp = get_lambda_client().invoke(
+            FunctionName=KIRA_FUNCTION,
+            Payload=json.dumps({"question": prompt, "history": history}).encode(),
         )
-        answer, steps = "", []
-        for event in response["completion"]:
-            if "chunk" in event:
-                answer += event["chunk"].get("bytes", b"").decode("utf-8")
-            elif "trace" in event:
-                orch = event["trace"].get("trace", {}).get("orchestrationTrace", {})
-                inv = orch.get("invocationInput", {})
-                collab = inv.get("agentCollaboratorInvocationInput", {}).get("agentCollaboratorName")
-                tool = inv.get("actionGroupInvocationInput", {}).get("function")
-                step = f"🤝 {collab}" if collab else (f"🔧 {tool}" if tool else None)
-                if step and step not in steps:
-                    steps.append(step)
-        return answer, steps
+        result = json.loads(resp["Payload"].read())
+        if resp.get("FunctionError"):
+            return {"answer": f"Kira failed: {result.get('errorMessage', result)}", "steps": []}
+        return result
     except Exception as e:
-        return f"⚠️ Error: {str(e)}", []
+        return {"answer": f"Error: {e}", "steps": []}
 
 
 # --- Header ---
@@ -231,19 +203,18 @@ st.markdown("""
 
 
 # --- Config Error ---
+config_ok, status_detail = kira_status()
 if not config_ok:
-    st.markdown(f"""
+    st.markdown("""
     <div class="status-bar">
         <div class="status-dot-error"></div>
         <span style="color: #ef4444;">NOT CONFIGURED</span>
     </div>
     """, unsafe_allow_html=True)
-
-    st.error(f"Bedrock agent `{AGENT_NAME}` not found in {AWS_REGION}. "
-             + st.session_state.get("lookup_error", ""))
+    st.error(f"Lambda `{KIRA_FUNCTION}` not reachable in {AWS_REGION}: {status_detail}")
     st.markdown("1. Check the AWS CLI works: `aws sts get-caller-identity`\n"
-                "2. Create the agents: **Actions → Infrastructure → apply** (with `aiops_enabled = true`)\n"
-                "3. Or set `BEDROCK_AGENT_ID` and `BEDROCK_AGENT_ALIAS_ID` in `.env`")
+                "2. Create it: **Actions -> Infrastructure -> apply** (with `aiops_enabled = true`)\n"
+                "3. Wrong region? Set `AWS_REGION=us-east-1` in `.env`")
     st.stop()
 
 
@@ -257,7 +228,7 @@ st.markdown(f"""
     <span style="color: #2a3040;">|</span>
     <span style="color: #5a6270;">Region: {AWS_REGION}</span>
     <span style="color: #2a3040;">|</span>
-    <span style="color: #5a6270;">Agent: {AGENT_ID}</span>
+    <span style="color: #5a6270;">Models: {status_detail}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -306,10 +277,14 @@ if prompt:
     # Get agent response
     with st.chat_message("assistant"):
         with st.spinner("🔍 Kira is investigating with her specialist agents (up to ~1-2 min)..."):
-            response, steps = invoke_agent(prompt)
+            result = ask_kira(prompt)
+        response, steps = result.get("answer", ""), result.get("steps", [])
         if steps:
-            with st.expander("How Kira investigated: " + ", ".join(steps)):
-                st.markdown("\n".join(f"- {s}" for s in steps))
+            agents = sorted({s.split(" ")[0] for s in steps})
+            with st.expander(f"How Kira investigated: {len(steps)} steps by {', '.join(agents)} "
+                             f"({result.get('seconds', '?')} s, "
+                             f"{result.get('tokens_in', 0) + result.get('tokens_out', 0)} tokens)"):
+                st.markdown("\n".join(f"- `{s}`" for s in steps))
         st.markdown(response)
 
     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -325,7 +300,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Kira's team (Bedrock multi-agent):**")
+    st.markdown("**Kira's team (Bedrock Converse multi-agent):**")
     st.markdown("- 📋 **logs-agent**: CloudWatch Logs Insights")
     st.markdown("- 📊 **metrics-agent**: Prometheus (RED, per-pod, orders, alerts)")
     st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, pods, events")

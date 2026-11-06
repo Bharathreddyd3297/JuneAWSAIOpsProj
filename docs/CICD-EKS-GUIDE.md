@@ -346,17 +346,19 @@ Do this once the plain load-balancer URL works.
 
 ## Step 11 — AIOps with Amazon Bedrock (Kira and her agents)
 
-The Infrastructure workflow also creates **Kira**, a Bedrock **supervisor agent**, and three **specialist agents**:
-- the **logs** agent, which reads CloudWatch Logs;
-- the **metrics** agent, which reads Prometheus;
-- the **deployment** agent, which reads Argo CD, Rollouts and pods.
+The Infrastructure workflow also creates **Kira**, a multi-agent AIOps assistant in the Lambda `telugu-pickles-kira`.
+- **Kira** is a supervisor model. She delegates to three **specialist agents**:
+  - the **logs** agent, which reads CloudWatch Logs;
+  - the **metrics** agent, which reads Prometheus;
+  - the **deployment** agent, which reads Argo CD, Rollouts, pods and events.
+- Every agent is a Bedrock **Converse** tool-use loop with read-only tools.
+- When the CloudWatch error alarm fires, Kira writes a root-cause report and sends it to SNS (email).
 
-Each specialist has a read-only Lambda tool. When the CloudWatch error alarm fires, a Lambda asks Kira for a root-cause report and emails it.
-
-1. **Check model access.** Run the one-line test in [projects/aiops-assistant/README.md](../projects/aiops-assistant/README.md#setup). If you get `AccessDenied`, change `aiops_*_model` in `terraform.tfvars`.
+1. **Models:** the default is Amazon Nova, which needs no approval. For Claude, see [Models](../projects/aiops-assistant/README.md#models).
 2. **Optional email reports:** set `aiops_alert_email` in `terraform.tfvars`, push, and click the AWS confirmation mail.
 3. **Chat:** `cd projects/aiops-assistant && pip install -r requirements.txt && streamlit run app.py`, then ask *"Is everything healthy?"*.
-4. **Full demo:** ship a failing canary. Argo Rollouts rolls it back, the alarm fires, and Kira emails the incident report. See the [demo in the AIOps README](../projects/aiops-assistant/README.md#demo-failed-canary--automatic-rollback--automatic-ai-incident-report).
+4. **Full demo:** ship a failing canary. Argo Rollouts rolls it back, the alarm fires, and Kira emails the incident report. See the
+   [demo in the AIOps README](../projects/aiops-assistant/README.md#demo-failed-canary--automatic-rollback--automatic-ai-incident-report).
 
 ---
 

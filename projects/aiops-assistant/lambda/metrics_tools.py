@@ -6,7 +6,6 @@ App metrics (prom-client, label app=<service>):
 """
 import re
 
-import agent_io
 import k8s
 
 NS = 'namespace="telugu-pickles"'
@@ -82,15 +81,3 @@ def firing_alerts():
          "summary": a.get("annotations", {}).get("summary"), "since": a.get("activeAt"), "value": a.get("value")}
         for a in k8s.prom_alerts() if a["labels"].get("alertname") not in ("Watchdog", "InfoInhibitor")]}
 
-
-FUNCTIONS = {
-    "service_health": service_health,
-    "pod_errors": pod_errors,
-    "business_metrics": business_metrics,
-    "pod_resources": pod_resources,
-    "firing_alerts": firing_alerts,
-}
-
-
-def handler(event, _context):
-    return agent_io.handle(event, FUNCTIONS)
