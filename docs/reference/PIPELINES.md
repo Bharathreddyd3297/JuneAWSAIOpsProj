@@ -1,12 +1,13 @@
 # GitHub Actions Pipelines
 
-Three workflows live in [`.github/workflows/`](../../.github/workflows/):
+Four workflows live in [`.github/workflows/`](../../.github/workflows/):
 
 | File | Name in the Actions tab | Purpose |
 |---|---|---|
 | `security.yml` | **Security Scan** | Find leaked secrets and known vulnerabilities (Gitleaks + Trivy) |
 | `infra.yml` | **Infrastructure** | Create, update or destroy AWS with Terraform |
 | `ci.yml` | **App CI** | Test, build, scan and push the 7 images, then hand over to Argo CD |
+| `release.yml` | **Release control** | Promote, abort, retry or undo a **blue-green** (frontend) or **canary** (catalog-service) release. See [PROGRESSIVE-DELIVERY.md](PROGRESSIVE-DELIVERY.md) |
 
 ```
                           ┌──────────── Security Scan (reusable) ────────────┐
@@ -130,6 +131,31 @@ Without step 1 the controller-created ALB would block VPC deletion, and the EBS 
 **Safety nets:**
 - If an ECR repository doesn't exist yet (infrastructure not created), the push step warns and the deploy job does nothing. No red run.
 - The deploy job retries `git pull --rebase` + push up to 3 times in case someone pushed meanwhile.
+
+**After the deploy commit,** each service is released by its own strategy, and the run summary lists them:
+- **frontend:** **blue-green**. The new version waits on ALB port 8080 until you run **Release control → promote**.
+- **catalog-service:** **canary**, 25% → Prometheus error check → 50% → check → 100%. A failed check rolls back automatically.
+- **the other 5 services:** rolling update.
+
+---
+
+## 4. Release control — `release.yml`
+
+**Runs on:** manual only (**Actions → Release control → Run workflow**).
+
+| Input | Choices |
+|---|---|
+| `rollout` | `frontend` (blue-green), `catalog-service` (canary) |
+| `action` | `status`, `promote` (next step or switch to green), `full` (straight to 100%), `abort` (back to stable), `retry`, `undo` |
+
+`promote`, `full` and `abort` change live traffic, so they run in the **`production` environment**. They wait for a reviewer's approval if you configured one.
+
+The job:
+1. logs in with `AWS_ROLE_ARN`;
+2. connects to the cluster;
+3. installs the checksum-verified `kubectl-argo-rollouts` v1.10.2;
+4. runs the action;
+5. writes the Rollout tree and the live and preview URLs to the summary.
 
 ---
 

@@ -1,0 +1,51 @@
+# Automatic checks that Argo Rollouts runs during a release.
+# If a check fails, the release is ABORTED and traffic stays on (or returns to) the old version.
+#
+# http-health        — used by the frontend BLUE-GREEN release before promotion
+# canary-error-rate  — used by the catalog-service CANARY release at every step
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: http-health
+  namespace: telugu-pickles
+spec:
+  args:
+    - name: url
+  metrics:
+    - name: backend-health
+      count: 3              # 3 checks, 10 s apart
+      interval: 10s
+      failureLimit: 1       # 2 failed checks = release aborted
+      successCondition: result == "ok"
+      provider:
+        web:
+          url: "{{args.url}}"
+          jsonPath: "{$.status}"
+          timeoutSeconds: 5
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-error-rate
+  namespace: telugu-pickles
+spec:
+  args:
+    - name: service        # e.g. catalog-service
+    - name: canary-hash    # pod-template-hash of the NEW version (filled in by Argo Rollouts)
+  metrics:
+    # Share of 5xx answers from the NEW pods only, over the last 2 minutes.
+    # No traffic yet -> 0 (not a failure). Health checks and /metrics are not counted.
+    - name: canary-5xx-ratio
+      interval: 30s
+      count: 4
+      failureLimit: 1
+      successCondition: result[0] <= 0.05
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+          query: |
+            (
+              sum(rate(http_requests_total{namespace="telugu-pickles", pod=~"{{args.service}}-{{args.canary-hash}}-.*", status_code=~"5.."}[2m]))
+              /
+              clamp_min(sum(rate(http_requests_total{namespace="telugu-pickles", pod=~"{{args.service}}-{{args.canary-hash}}-.*"}[2m])), 0.0001)
+            ) or vector(0)

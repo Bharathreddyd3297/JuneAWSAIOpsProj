@@ -1,6 +1,13 @@
 # catalog-service — Pickle catalogue + stock
-apiVersion: apps/v1
-kind: Deployment
+#
+# CANARY release (Argo Rollouts) with automatic analysis:
+#   25% of pods new  -> wait 1 min -> Prometheus check (2 min): 5xx ratio of NEW pods <= 5%
+#   50% of pods new  -> wait 1 min -> same check
+#   100%             -> done
+# If a check fails, Argo Rollouts ABORTS and scales the new version back to 0 (automatic rollback).
+# The Service sends traffic to all pods, so "25% of pods" = about 25% of requests.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: catalog-service
   namespace: telugu-pickles
@@ -9,13 +16,35 @@ metadata:
     app.kubernetes.io/name: catalog-service
     app.kubernetes.io/part-of: telugu-pickles
 spec:
-  replicas: 2
+  replicas: 4
   revisionHistoryLimit: 5
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
+    canary:
       maxUnavailable: 0
-      maxSurge: 1
+      steps:
+        - setWeight: 25
+        - pause: { duration: 1m }
+        - analysis:
+            templates:
+              - templateName: canary-error-rate
+            args:
+              - name: service
+                value: catalog-service
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
+        - setWeight: 50
+        - pause: { duration: 1m }
+        - analysis:
+            templates:
+              - templateName: canary-error-rate
+            args:
+              - name: service
+                value: catalog-service
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
+        - setWeight: 100
   selector:
     matchLabels:
       app: catalog-service

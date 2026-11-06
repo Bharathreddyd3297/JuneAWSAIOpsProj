@@ -213,4 +213,10 @@ jobs:
           {
             echo "### Deployed \`${IMAGE_TAG::7}\`"
             echo "Argo CD syncs within ~1 minute. Watch: \`kubectl -n argocd get application telugu-pickles -w\`"
+            echo ""
+            echo "| Service | Release strategy | What happens next |"
+            echo "|---|---|---|"
+            echo "| frontend | **Blue-green** | Green waits on ALB port **8080**. Test it, then **Actions → Release control → frontend → promote** |"
+            echo "| catalog-service | **Canary** | 25% → Prometheus check → 50% → check → 100%, automatic. Errors > 5% = automatic rollback |"
+            echo "| other services | Rolling update | Automatic |"
           } >> "$GITHUB_STEP_SUMMARY"

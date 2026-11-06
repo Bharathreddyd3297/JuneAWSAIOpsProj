@@ -235,6 +235,23 @@ resource "helm_release" "argocd" {
   })]
 }
 
+# =============================================================== Argo Rollouts
+# Progressive delivery: the "Rollout" kind replaces Deployment for services that
+# release with blue-green (frontend) or canary + Prometheus analysis (catalog-service).
+resource "helm_release" "argo_rollouts" {
+  name       = "argo-rollouts"
+  namespace  = kubernetes_namespace_v1.argocd.metadata[0].name
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-rollouts"
+  version    = "2.43.9"
+  timeout    = 600
+
+  values = [yamlencode({
+    controller = { replicas = 1 }   # demo cluster: one controller is enough
+    dashboard  = { enabled = true } # kubectl -n argocd port-forward svc/argo-rollouts-dashboard 3100:3100
+  })]
+}
+
 # The Application that makes Argo CD deploy gitops/ — created via the argocd-apps chart
 # so Terraform can plan it before the Argo CD CRDs exist.
 locals {
@@ -297,19 +314,19 @@ resource "helm_release" "argocd_apps" {
           ]
           retry = { limit = 10, backoff = { duration = "15s", factor = 2, maxDuration = "3m" } }
         }
-        ignoreDifferences = [{
-          group        = "apps"
-          kind         = "Deployment"
-          jsonPointers = ["/spec/replicas"]
-        }]
+        ignoreDifferences = [
+          { group = "apps", kind = "Deployment", jsonPointers = ["/spec/replicas"] },
+          { group = "argoproj.io", kind = "Rollout", jsonPointers = ["/spec/replicas"] },
+        ]
       }
     }
   })]
 
   # Everything the app needs must exist before the first sync:
-  # its Secret, ServiceMonitor CRDs, the IngressClass "alb", and Argo CD itself.
+  # its Secret, ServiceMonitor + Rollout CRDs, the IngressClass "alb", and Argo CD itself.
   depends_on = [
     helm_release.argocd,
+    helm_release.argo_rollouts,
     helm_release.monitoring,
     helm_release.load_balancer_controller,
     kubernetes_secret_v1.app,

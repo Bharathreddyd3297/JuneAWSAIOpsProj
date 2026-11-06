@@ -15,6 +15,7 @@ resources:
   - k8s/apps/payment-service.yml
   - k8s/apps/gateway.yml
   - k8s/apps/frontend.yml
+  - k8s/apps/analysis.yml
   - k8s/apps/autoscaling.yml
   - k8s/monitoring/servicemonitor.yml
 configMapGenerator:

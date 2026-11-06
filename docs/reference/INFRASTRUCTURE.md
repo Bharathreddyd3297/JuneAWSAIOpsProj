@@ -83,6 +83,7 @@ There are **no private subnets and no NAT gateway**. That saves about $32 per mo
 | CloudWatch metric filter + alarm | — | — | Counts `$.data.level = "ERROR"` → `TeluguPickles/AppErrorCount`; alarm `telugu-pickles-error-spike` when > 5 in 5 min |
 | Helm **kube-prometheus-stack** | monitoring | 92.20.0 | Prometheus (7-day retention), Grafana (admin password generated), Alertmanager, node-exporter, kube-state-metrics. Discovers ServiceMonitors and dashboards in all namespaces. |
 | Helm **argo-cd** | argocd | 10.14.0 | Argo CD server/controller/repo-server/redis; Dex and notifications off; polls Git every 60 s |
+| Helm **argo-rollouts** | argocd | 2.43.9 | Argo Rollouts controller + dashboard. The `Rollout` kind for **blue-green** and **canary** releases (see [PROGRESSIVE-DELIVERY.md](PROGRESSIVE-DELIVERY.md)) |
 | Helm **argocd-apps** | argocd | 2.0.7 | The `telugu-pickles` **Application** (see [ARGOCD.md](ARGOCD.md)) |
 
 **Only when `domain_name` is set** (see `modules/platform/dns.tf`):

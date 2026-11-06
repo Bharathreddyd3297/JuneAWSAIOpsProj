@@ -67,7 +67,7 @@ In this project CI never runs `kubectl`. It only **commits new image tags to Git
 
 | Owned by Terraform | Owned by Argo CD (from `gitops/`) |
 |---|---|
-| Namespace `telugu-pickles` (PSA labels) | 6 service Deployments + Services, frontend Deployment |
+| Namespace `telugu-pickles` (PSA labels) | 5 service Deployments + Services; **Rollouts** `frontend` (blue-green) and `catalog-service` (canary) + AnalysisTemplates ([PROGRESSIVE-DELIVERY.md](PROGRESSIVE-DELIVERY.md)) |
 | Secret `telugu-pickles-secrets` (generated passwords) | Postgres StatefulSet + headless Service |
 | Argo CD itself, Prometheus/Grafana, ALB controller, Fluent Bit | Ingress `frontend` (→ ALB) |
 | The Application object | ConfigMap `telugu-pickles-config` (service URLs, chaos knobs) |

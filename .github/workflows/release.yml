@@ -1,0 +1,109 @@
+# Release control — drive Argo Rollouts releases from GitHub (no laptop needed).
+#
+#   frontend         BLUE-GREEN : new version waits on ALB port 8080 -> "promote" switches shoppers to it
+#   catalog-service  CANARY     : 25% -> check -> 50% -> check -> 100%, automatic; "promote" skips the waits
+#
+#   status   show the release (steps, pods, analysis results)
+#   promote  go to the next step (blue-green: switch traffic to green)       [needs "production" approval]
+#   full     promote all the way to 100% at once                            [needs "production" approval]
+#   abort    stop the release, all traffic back to the stable version         [needs "production" approval]
+#   retry    restart an aborted release
+#   undo     roll back to the previous version (starts a new release of the old image)
+#
+# Note: Argo CD keeps Git as the truth. After "undo", also revert the deploy commit in Git,
+# otherwise the next Git change brings the new image back.
+name: Release control
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollout:
+        description: "Which service"
+        type: choice
+        options: [frontend, catalog-service]
+        default: frontend
+      action:
+        description: "What to do"
+        type: choice
+        options: [status, promote, full, abort, retry, undo]
+        default: status
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ inputs.rollout }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  CLUSTER: telugu-pickles-eks
+  NAMESPACE: telugu-pickles
+  ROLLOUTS_VERSION: v1.10.2
+  ROLLOUTS_SHA256: 355d62379d787a778f92903ce0b2fc1c1f4999d790d829370b6f1854a55f1cf9
+
+jobs:
+  release:
+    name: ${{ inputs.action }} ${{ inputs.rollout }}
+    runs-on: ubuntu-latest
+    # Changing live traffic needs an approval click (Settings -> Environments -> production -> reviewers)
+    environment: ${{ contains(fromJSON('["promote","full","abort"]'), inputs.action) && 'production' || '' }}
+    steps:
+      - name: Check AWS access is configured
+        env:
+          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE" ]; then echo "::error::Secret AWS_ROLE_ARN is not set (docs/CICD-EKS-GUIDE.md, Step 3)"; exit 1; fi
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Connect kubectl to EKS
+        run: |
+          if ! aws eks describe-cluster --name "$CLUSTER" >/dev/null 2>&1; then
+            echo "::error::Cluster $CLUSTER does not exist. Run Actions -> Infrastructure -> apply first."; exit 1
+          fi
+          aws eks update-kubeconfig --name "$CLUSTER" --region "$AWS_REGION"
+
+      - name: Install the Argo Rollouts kubectl plugin (checksum-verified)
+        run: |
+          curl -sSLo kubectl-argo-rollouts "https://github.com/argoproj/argo-rollouts/releases/download/${ROLLOUTS_VERSION}/kubectl-argo-rollouts-linux-amd64"
+          echo "${ROLLOUTS_SHA256}  kubectl-argo-rollouts" | sha256sum -c -
+          chmod +x kubectl-argo-rollouts && sudo mv kubectl-argo-rollouts /usr/local/bin/
+
+      - name: ${{ inputs.action }}
+        env:
+          ROLLOUT: ${{ inputs.rollout }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          r="kubectl argo rollouts -n $NAMESPACE"
+          case "$ACTION" in
+            status)  ;;
+            promote) $r promote "$ROLLOUT" ;;
+            full)    $r promote "$ROLLOUT" --full ;;
+            abort)   $r abort "$ROLLOUT" ;;
+            retry)   $r retry rollout "$ROLLOUT" ;;
+            undo)    $r undo "$ROLLOUT" ;;
+          esac
+          sleep 5
+          $r get rollout "$ROLLOUT" --no-color | tee status.txt
+
+      - name: Summary
+        if: always()
+        env:
+          ROLLOUT: ${{ inputs.rollout }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          alb=$(kubectl -n "$NAMESPACE" get ingress frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
+          {
+            echo "### ${ACTION} \`${ROLLOUT}\`"
+            if [ "$ROLLOUT" = frontend ] && [ -n "$alb" ]; then
+              echo "| | URL |"; echo "|---|---|"
+              echo "| Live (blue / active) | http://${alb} |"
+              echo "| Preview (green) | http://${alb}:8080 |"
+            fi
+            echo '```'; cat status.txt 2>/dev/null; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

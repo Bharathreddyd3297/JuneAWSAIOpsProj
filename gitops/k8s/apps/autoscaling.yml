@@ -13,15 +13,17 @@ spec:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 ---
+# catalog-service is an Argo Rollout (canary). Minimum 4 pods so the canary steps
+# are visible: 25% = 1 new pod, 50% = 2 new pods.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: catalog-service
   namespace: telugu-pickles
 spec:
-  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: catalog-service }
-  minReplicas: 2
-  maxReplicas: 4
+  scaleTargetRef: { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: catalog-service }
+  minReplicas: 4
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }

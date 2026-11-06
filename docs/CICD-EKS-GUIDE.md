@@ -175,11 +175,11 @@ Open **Actions** in GitHub. On the first push both workflows start.
 ### 4a. Infrastructure workflow (about 30 minutes the first time)
 
 1. **Security scan**: Gitleaks and Trivy (about 1 min).
-2. **Terraform plan**: the run summary shows *Plan: 61 to add*.
+2. **Terraform plan**: the run summary shows *Plan: 62 to add*.
 3. **Terraform apply** creates, in this order:
    - VPC (3 public subnets), EKS 1.35 control plane (about 10 min) and 2 × m7i-flex.large nodes;
    - 7 ECR repositories;
-   - Argo CD, kube-prometheus-stack (Prometheus + Grafana), metrics-server, AWS Load Balancer Controller and Fluent Bit;
+   - Argo CD, **Argo Rollouts** (blue-green and canary), kube-prometheus-stack (Prometheus + Grafana), metrics-server, AWS Load Balancer Controller and Fluent Bit;
    - the `telugu-pickles` namespace and its Secret (generated passwords);
    - the **Argo CD Application** pointing at `gitops/` in your repository.
 
@@ -310,10 +310,16 @@ This is the loop you'll use every day:
 1. Change something visible, for example the hero line in `projects/telugu-pickles/frontend/src/pages/Home.jsx`.
 2. `git commit -am "Change hero text" && git push`
 3. **Actions → App CI** goes green in about 6 minutes, and a bot commit `deploy: telugu-pickles <sha>` appears.
-4. Within about 1 minute **Argo CD** shows *OutOfSync → Syncing → Synced*, and pods roll one by one with zero downtime.
+4. Within about 1 minute **Argo CD** shows *OutOfSync → Syncing*, and each service is released by its own strategy:
+   - **frontend**, **blue-green**: the new version appears on **`http://<ALB>:8080`** while shoppers on `http://<ALB>` still see the old one. Argo CD shows *Suspended*.
+     When you're happy, run **Actions → Release control → `frontend` → `promote`**.
+   - **catalog-service**, **canary**: 25% of pods → automatic Prometheus error check → 50% → check → 100%. A bad version is rolled back automatically.
+   - **the other services**: rolling update, pods replaced one by one with zero downtime.
 5. Refresh the shop.
 
 **Roll back** by reverting the bot commit: `git revert <deploy-commit> && git push`. Argo CD redeploys the previous images.
+
+**Full blue-green and canary walkthrough, including a deliberately failing canary:** [reference/PROGRESSIVE-DELIVERY.md](reference/PROGRESSIVE-DELIVERY.md).
 
 ---
 
