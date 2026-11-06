@@ -43,3 +43,6 @@ dist/
 # Terraform local overrides (never commit)
 *_override.tf
 *_override.tf.json
+
+# AIOps Lambda build output
+projects/Infrastructure/modules/aiops/.build/

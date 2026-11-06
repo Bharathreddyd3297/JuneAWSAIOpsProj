@@ -17,11 +17,13 @@ on:
     paths:
       - "projects/Infrastructure/**"
       - "!projects/Infrastructure/bootstrap/**" # bootstrap is laptop-only
+      - "projects/aiops-assistant/lambda/**" # AIOps Lambda code is packaged by Terraform
       - ".github/workflows/infra.yml"
   pull_request:
     paths:
       - "projects/Infrastructure/**"
       - "!projects/Infrastructure/bootstrap/**"
+      - "projects/aiops-assistant/lambda/**"
       - ".github/workflows/infra.yml"
   workflow_dispatch:
     inputs:

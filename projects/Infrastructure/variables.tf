@@ -107,3 +107,28 @@ variable "log_retention_days" {
   type        = number
   default     = 7
 }
+
+# ---- AIOps (Bedrock multi-agent) ----
+variable "aiops_enabled" {
+  description = "Create the Bedrock AIOps agents (Kira + 3 specialists), their Lambda tools and the alarm -> report flow"
+  type        = bool
+  default     = true
+}
+
+variable "aiops_supervisor_model" {
+  description = "Bedrock inference profile for Kira, the supervisor agent"
+  type        = string
+  default     = "us.anthropic.claude-sonnet-4-6"
+}
+
+variable "aiops_specialist_model" {
+  description = "Bedrock inference profile for the logs / metrics / deployment agents"
+  type        = string
+  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+}
+
+variable "aiops_alert_email" {
+  description = "Email for automatic incident reports (AWS sends a confirmation mail first). Empty = no email."
+  type        = string
+  default     = ""
+}

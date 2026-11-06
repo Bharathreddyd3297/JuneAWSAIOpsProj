@@ -66,3 +66,23 @@ module "platform" {
   # Helm/Kubernetes resources need running nodes and admin access first.
   depends_on = [module.eks]
 }
+
+module "aiops" {
+  source = "./modules/aiops"
+  count  = var.aiops_enabled ? 1 : 0
+
+  region            = var.region
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  cluster_ca        = module.eks.cluster_certificate_authority_data
+  log_group_name    = module.platform.app_log_group
+  log_group_arn     = module.platform.app_log_group_arn
+  alarm_topic_arn   = module.platform.alarm_topic_arn
+  supervisor_model  = var.aiops_supervisor_model
+  specialist_model  = var.aiops_specialist_model
+  alert_email       = var.aiops_alert_email
+  lambda_source_dir = "${path.root}/../aiops-assistant/lambda"
+
+  # RBAC objects need the cluster; Prometheus must exist for the tools to be useful
+  depends_on = [module.platform]
+}

@@ -1,12 +1,11 @@
 """
-AIOps Assistant — Streamlit Chat UI
-Connects to AWS Bedrock Agent for root cause analysis.
+AIOps Assistant — Streamlit chat UI for Kira, the Bedrock supervisor agent.
+Kira delegates to three specialist agents (logs, metrics, deployments) created by Terraform
+(projects/Infrastructure/modules/aiops).
 
-Setup:
-    1. pip install -r requirements.txt
-    2. cp .env.example .env
-    3. Fill in your values in .env
-    4. streamlit run app.py
+Run (AWS CLI must be logged in to the account that has the agents):
+    pip install -r requirements.txt
+    streamlit run app.py
 """
 
 import streamlit as st
@@ -19,13 +18,32 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Config from environment ---
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
+# --- Config ---
+# AWS credentials come from your normal AWS CLI login (aws configure / SSO). No keys in files.
+# The agent is found by name (created by Terraform); set the IDs in .env only to override.
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AGENT_NAME = os.getenv("BEDROCK_AGENT_NAME", "telugu-pickles-kira")
 AGENT_ID = os.getenv("BEDROCK_AGENT_ID")
 AGENT_ALIAS_ID = os.getenv("BEDROCK_AGENT_ALIAS_ID")
+
+
+def find_agent():
+    """Look up Kira's agent ID and its 'live' alias by name."""
+    client = boto3.client("bedrock-agent", region_name=AWS_REGION)
+    for page in client.get_paginator("list_agents").paginate():
+        for agent in page["agentSummaries"]:
+            if agent["agentName"] == AGENT_NAME:
+                aliases = client.list_agent_aliases(agentId=agent["agentId"])["agentAliasSummaries"]
+                live = [a for a in aliases if a["agentAliasName"] == "live"]
+                return agent["agentId"], (live[0]["agentAliasId"] if live else None)
+    return None, None
+
+
+if not (AGENT_ID and AGENT_ALIAS_ID):
+    try:
+        AGENT_ID, AGENT_ALIAS_ID = find_agent()
+    except Exception as exc:  # no credentials / no permission
+        st.session_state["lookup_error"] = str(exc)
 
 
 # --- Page Config ---
@@ -169,38 +187,38 @@ if "session_id" not in st.session_state:
 # --- Bedrock Agent Client ---
 @st.cache_resource
 def get_bedrock_client():
-    kwargs = {"service_name": "bedrock-agent-runtime", "region_name": AWS_REGION}
-    if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-        kwargs["aws_access_key_id"] = AWS_ACCESS_KEY_ID
-        kwargs["aws_secret_access_key"] = AWS_SECRET_ACCESS_KEY
-        if AWS_SESSION_TOKEN:
-            kwargs["aws_session_token"] = AWS_SESSION_TOKEN
-    return boto3.client(**kwargs)
+    from botocore.config import Config
+    # multi-agent investigations can take 1-2 minutes
+    return boto3.client("bedrock-agent-runtime", region_name=AWS_REGION,
+                        config=Config(read_timeout=300, retries={"max_attempts": 1}))
 
 
-def invoke_agent(prompt: str) -> str:
-    """Send a message to the Bedrock Agent and get the response."""
+def invoke_agent(prompt: str) -> tuple[str, list]:
+    """Send a message to Kira. Returns (answer, [specialist agents / tools she used])."""
     client = get_bedrock_client()
-
     try:
         response = client.invoke_agent(
             agentId=AGENT_ID,
             agentAliasId=AGENT_ALIAS_ID,
             sessionId=st.session_state.session_id,
             inputText=prompt,
+            enableTrace=True,  # lets us show which specialist agents were consulted
         )
-
-        full_response = ""
+        answer, steps = "", []
         for event in response["completion"]:
             if "chunk" in event:
-                chunk = event["chunk"]
-                if "bytes" in chunk:
-                    full_response += chunk["bytes"].decode("utf-8")
-
-        return full_response
-
+                answer += event["chunk"].get("bytes", b"").decode("utf-8")
+            elif "trace" in event:
+                orch = event["trace"].get("trace", {}).get("orchestrationTrace", {})
+                inv = orch.get("invocationInput", {})
+                collab = inv.get("agentCollaboratorInvocationInput", {}).get("agentCollaboratorName")
+                tool = inv.get("actionGroupInvocationInput", {}).get("function")
+                step = f"🤝 {collab}" if collab else (f"🔧 {tool}" if tool else None)
+                if step and step not in steps:
+                    steps.append(step)
+        return answer, steps
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        return f"⚠️ Error: {str(e)}", []
 
 
 # --- Header ---
@@ -221,15 +239,11 @@ if not config_ok:
     </div>
     """, unsafe_allow_html=True)
 
-    st.error("Missing Bedrock agent settings. Create a `.env` file with at least:")
-    st.code("""AWS_REGION=us-east-1
-BEDROCK_AGENT_ID=your_agent_id
-BEDROCK_AGENT_ALIAS_ID=TSTALIASID
-
-# Optional (omit to use AWS CLI profile / SSO / role):
-# AWS_ACCESS_KEY_ID=...
-# AWS_SECRET_ACCESS_KEY=...
-# AWS_SESSION_TOKEN=...  # only for temporary credentials""", language="bash")
+    st.error(f"Bedrock agent `{AGENT_NAME}` not found in {AWS_REGION}. "
+             + st.session_state.get("lookup_error", ""))
+    st.markdown("1. Check the AWS CLI works: `aws sts get-caller-identity`\n"
+                "2. Create the agents: **Actions → Infrastructure → apply** (with `aiops_enabled = true`)\n"
+                "3. Or set `BEDROCK_AGENT_ID` and `BEDROCK_AGENT_ALIAS_ID` in `.env`")
     st.stop()
 
 
@@ -251,17 +265,19 @@ st.markdown(f"""
 # --- Quick Actions ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    if st.button("🔴 Check 503 errors"):
-        st.session_state.quick_action = "Why are we seeing 503 errors in the last hour?"
+    if st.button("🩺 Is everything healthy?"):
+        st.session_state.quick_action = "Is the Telugu Pickles platform healthy right now? Check all services briefly."
 with col2:
-    if st.button("📊 CPU & Memory"):
-        st.session_state.quick_action = "Check CPU and memory utilization across all services"
+    if st.button("🚦 Release status"):
+        st.session_state.quick_action = ("What is the state of the blue-green (frontend) and canary (catalog-service) "
+                                         "releases? Did any release check fail recently?")
 with col3:
-    if st.button("🫙 Checkout failures"):
-        st.session_state.quick_action = "Why are checkouts failing? Check payment-service"
+    if st.button("🔴 Investigate errors"):
+        st.session_state.quick_action = ("We are seeing errors in the shop. Investigate the last 30 minutes "
+                                         "and give me a full incident report.")
 with col4:
-    if st.button("🔍 Recent errors"):
-        st.session_state.quick_action = "What are the most frequent errors in the last hour?"
+    if st.button("🫙 Checkout failures"):
+        st.session_state.quick_action = "Why are checkouts failing? Check orders, payment-service and its logs."
 
 st.markdown("<div style='height: 0.5rem'></div>", unsafe_allow_html=True)
 
@@ -289,8 +305,11 @@ if prompt:
 
     # Get agent response
     with st.chat_message("assistant"):
-        with st.spinner("🔍 Kira is investigating..."):
-            response = invoke_agent(prompt)
+        with st.spinner("🔍 Kira is investigating with her specialist agents (up to ~1-2 min)..."):
+            response, steps = invoke_agent(prompt)
+        if steps:
+            with st.expander("How Kira investigated: " + ", ".join(steps)):
+                st.markdown("\n".join(f"- {s}" for s in steps))
         st.markdown(response)
 
     st.session_state.messages.append({"role": "assistant", "content": response})
@@ -306,20 +325,20 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Tools Available:**")
-    st.markdown("- 📋 `fetch_logs` — CloudWatch Logs")
-    st.markdown("- 📊 `fetch_metrics` — Prometheus (pods, RED, business)")
-    st.markdown("- 🏥 `fetch_service_health` — EKS nodes, deployments, restarts")
+    st.markdown("**Kira's team (Bedrock multi-agent):**")
+    st.markdown("- 📋 **logs-agent**: CloudWatch Logs Insights")
+    st.markdown("- 📊 **metrics-agent**: Prometheus (RED, per-pod, orders, alerts)")
+    st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, pods, events")
 
     st.markdown("---")
     st.markdown("**Sample Questions:**")
     st.markdown("""
-    - Why are we seeing 503 errors?
-    - Is CPU usage high?
-    - Check database connections
-    - Are all services healthy?
-    - What errors happened in the last 2 hours?
-    - Is there a memory leak?
+    - Why did the last catalog-service canary roll back?
+    - Is the new frontend (blue-green preview) waiting for promotion?
+    - Which pods return 5xx errors right now?
+    - Are payments failing? Since when?
+    - Did errors start after the last deployment?
+    - Which pod uses the most memory?
     """)
 
     st.markdown("---")

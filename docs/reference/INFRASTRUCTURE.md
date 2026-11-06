@@ -95,6 +95,26 @@ There are **no private subnets and no NAT gateway**. That saves about $32 per mo
 | Ingresses `argocd` and `grafana` | HTTPS on the same shared ALB (`group.name: telugu-pickles`) |
 | Argo CD patch on the shop Ingress | Adds host `shop.<domain>`, port 443, HTTP→HTTPS redirect, certificate |
 
+### `modules/aiops` (Bedrock multi-agent AIOps, when `aiops_enabled = true`)
+
+Details and demo: [`projects/aiops-assistant/README.md`](../../projects/aiops-assistant/README.md).
+
+| Resource | Details |
+|---|---|
+| Bedrock agent **`telugu-pickles-kira`** + alias `live` | **Supervisor** (`agent_collaboration = SUPERVISOR`), model `aiops_supervisor_model` (Claude Sonnet 4.6) |
+| Bedrock agents `telugu-pickles-{logs,metrics,deploy}-agent` + action groups + aliases | **Collaborators**, model `aiops_specialist_model` (Claude Haiku 4.5), one Lambda each |
+| 3 collaborator associations | logs, metrics and deployment agents attached to Kira, one after another |
+| IAM role `telugu-pickles-aiops-agents` | Bedrock invokes the models and the collaborator aliases |
+| Lambdas `telugu-pickles-aiops-{logs,metrics,deploy}-tools` | Python 3.12 arm64, code from `projects/aiops-assistant/lambda/`. Only their agent may invoke them. |
+| Lambda `telugu-pickles-aiops-incident` | Alarm → Kira → report |
+| IAM roles `telugu-pickles-aiops-{logs,k8s,incident}` | logs: query the app log group only. k8s: **no AWS permissions**. incident: invoke Kira, publish the report. |
+| EKS access entry + ClusterRole/Binding **`aiops-reader`** | Role `…-aiops-k8s` → group `aiops-readers`: get/list on pods, events, workloads, Rollouts, AnalysisRuns and Applications, plus the Prometheus service proxy. No secrets, no writes. |
+| SNS `telugu-pickles-alarms` (in `modules/platform`) | The error alarm's action. The incident Lambda subscribes to it. |
+| SNS `telugu-pickles-aiops-reports` (+ email subscription if `aiops_alert_email` is set) | Incident reports |
+| 4 CloudWatch log groups `/aws/lambda/telugu-pickles-aiops-*` | 7-day retention |
+
+Cost when idle: $0. Each investigation costs about $0.10–0.30 in Bedrock tokens.
+
 ### Created by Kubernetes, not Terraform
 | Resource | Created by | Removed by |
 |---|---|---|
@@ -119,6 +139,9 @@ That's why **destroy must run `pre-destroy.sh` first**. The Infrastructure workf
 | `gitops_repo_url`, `gitops_revision` | this repo, `main` | fork or another branch |
 | `domain_name` | `""` | after GoDaddy points to Route 53 |
 | `log_retention_days` | 7 | longer log history |
+| `aiops_enabled` | `true` | `false` skips Bedrock/Lambda entirely |
+| `aiops_supervisor_model`, `aiops_specialist_model` | Sonnet 4.6, Haiku 4.5 (`us.` inference profiles) | your account has other models enabled |
+| `aiops_alert_email` | `""` | you want incident reports by email |
 
 ## Outputs
 

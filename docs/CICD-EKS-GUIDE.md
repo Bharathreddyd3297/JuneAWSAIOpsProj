@@ -10,7 +10,7 @@ This guide continues from [running the app locally](../projects/telugu-pickles/L
 **Time:** about 1 hour 15 minutes the first time, of which about 30 minutes is waiting for EKS.
 Reference docs (what each pipeline, resource and Argo CD setting does): [docs/reference/](reference/README.md)
 
-**Cost:** about **$0.35 per hour** while the cluster exists. [Destroy it](#step-11--destroy-everything-stop-the-bill) when you finish.
+**Cost:** about **$0.35 per hour** while the cluster exists. [Destroy it](#step-12--destroy-everything-stop-the-bill) when you finish.
 
 ---
 
@@ -344,7 +344,23 @@ Do this once the plain load-balancer URL works.
 
 ---
 
-## Step 11 — Destroy everything (stop the bill)
+## Step 11 — AIOps with Amazon Bedrock (Kira and her agents)
+
+The Infrastructure workflow also creates **Kira**, a Bedrock **supervisor agent**, and three **specialist agents**:
+- the **logs** agent, which reads CloudWatch Logs;
+- the **metrics** agent, which reads Prometheus;
+- the **deployment** agent, which reads Argo CD, Rollouts and pods.
+
+Each specialist has a read-only Lambda tool. When the CloudWatch error alarm fires, a Lambda asks Kira for a root-cause report and emails it.
+
+1. **Check model access.** Run the one-line test in [projects/aiops-assistant/README.md](../projects/aiops-assistant/README.md#setup). If you get `AccessDenied`, change `aiops_*_model` in `terraform.tfvars`.
+2. **Optional email reports:** set `aiops_alert_email` in `terraform.tfvars`, push, and click the AWS confirmation mail.
+3. **Chat:** `cd projects/aiops-assistant && pip install -r requirements.txt && streamlit run app.py`, then ask *"Is everything healthy?"*.
+4. **Full demo:** ship a failing canary. Argo Rollouts rolls it back, the alarm fires, and Kira emails the incident report. See the [demo in the AIOps README](../projects/aiops-assistant/README.md#demo-failed-canary--automatic-rollback--automatic-ai-incident-report).
+
+---
+
+## Step 12 — Destroy everything (stop the bill)
 
 **Option A, from GitHub:** **Actions → Infrastructure → Run workflow**, choose `destroy` and type `destroy` in the confirm box.
 

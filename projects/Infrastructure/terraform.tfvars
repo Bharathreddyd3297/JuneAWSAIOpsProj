@@ -53,3 +53,11 @@ domain_name = ""
 
 # ---- CloudWatch ---------------------------------------------------------------
 log_retention_days = 7
+
+# ---- AIOps (Bedrock) ----------------------------------------------------------
+# Models must be enabled for your account: test with
+#   aws bedrock-runtime converse --model-id <id> --messages '[{"role":"user","content":[{"text":"hi"}]}]'
+aiops_enabled          = true
+aiops_supervisor_model = "us.anthropic.claude-sonnet-4-6"
+aiops_specialist_model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+aiops_alert_email      = "" # your email -> incident reports by mail (confirm the AWS subscription mail)

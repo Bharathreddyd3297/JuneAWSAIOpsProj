@@ -160,6 +160,12 @@ resource "aws_cloudwatch_metric_alarm" "app_errors" {
   threshold           = 5
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn] # -> AIOps incident Lambda (modules/aiops)
+}
+
+# Alarm notifications. The AIOps module subscribes its incident Lambda here.
+resource "aws_sns_topic" "alarms" {
+  name = "telugu-pickles-alarms"
 }
 
 # =============================================================== Prometheus + Grafana
