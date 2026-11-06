@@ -1,6 +1,6 @@
 """
-AIOps Assistant — Streamlit chat UI for Kira.
-Kira is a multi-agent AIOps assistant running in AWS Lambda (projects/aiops-assistant/lambda/kira.py):
+AIOps Assistant — Streamlit chat UI for Dude.
+Dude is a multi-agent AIOps assistant running in AWS Lambda (projects/aiops-assistant/lambda/kira.py):
 a supervisor model delegates to logs, metrics and deployment agents via the Bedrock Converse API.
 
 Run (the AWS CLI must be logged in to the account where Terraform created the Lambda):
@@ -27,7 +27,7 @@ KIRA_FUNCTION = os.getenv("KIRA_FUNCTION", "telugu-pickles-kira")
 
 # --- Page Config ---
 st.set_page_config(
-    page_title="Kira — AIOps Assistant",
+    page_title="Dude — AIOps Assistant",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -168,7 +168,7 @@ def get_lambda_client():
 
 @st.cache_data(ttl=60, show_spinner=False)
 def kira_status():
-    """Returns (ok, detail): is the Kira Lambda there, and which models does it use?"""
+    """Returns (ok, detail): is the assistant Lambda there, and which models does it use?"""
     try:
         cfg = get_lambda_client().get_function_configuration(FunctionName=KIRA_FUNCTION)
         env = cfg.get("Environment", {}).get("Variables", {})
@@ -178,7 +178,7 @@ def kira_status():
 
 
 def ask_kira(prompt: str) -> dict:
-    """Invoke the Kira Lambda with the question and the earlier chat turns."""
+    """Invoke the assistant Lambda with the question and the earlier chat turns."""
     history = [{"role": m["role"], "text": m["content"]} for m in st.session_state.messages[:-1][-10:]]
     try:
         resp = get_lambda_client().invoke(
@@ -187,7 +187,7 @@ def ask_kira(prompt: str) -> dict:
         )
         result = json.loads(resp["Payload"].read())
         if resp.get("FunctionError"):
-            return {"answer": f"Kira failed: {result.get('errorMessage', result)}", "steps": []}
+            return {"answer": f"Dude failed: {result.get('errorMessage', result)}", "steps": []}
         return result
     except Exception as e:
         return {"answer": f"Error: {e}", "steps": []}
@@ -196,7 +196,7 @@ def ask_kira(prompt: str) -> dict:
 # --- Header ---
 st.markdown("""
 <div class="main-header">
-    <h1>⚡ KIRA</h1>
+    <h1>⚡ DUDE</h1>
     <p>AIOps Assistant — Root Cause Analysis Engine</p>
 </div>
 """, unsafe_allow_html=True)
@@ -276,12 +276,12 @@ if prompt:
 
     # Get agent response
     with st.chat_message("assistant"):
-        with st.spinner("🔍 Kira is investigating with her specialist agents (up to ~1-2 min)..."):
+        with st.spinner("🔍 Dude is investigating with the specialist agents (up to ~1-2 min)..."):
             result = ask_kira(prompt)
         response, steps = result.get("answer", ""), result.get("steps", [])
         if steps:
             agents = sorted({s.split(" ")[0] for s in steps})
-            with st.expander(f"How Kira investigated: {len(steps)} steps by {', '.join(agents)} "
+            with st.expander(f"How Dude investigated: {len(steps)} steps by {', '.join(agents)} "
                              f"({result.get('seconds', '?')} s, "
                              f"{result.get('tokens_in', 0) + result.get('tokens_out', 0)} tokens)"):
                 st.markdown("\n".join(f"- `{s}`" for s in steps))
@@ -294,13 +294,13 @@ if prompt:
 with st.sidebar:
     st.markdown("""
     <div style="font-family: 'JetBrains Mono', monospace; padding: 1rem 0;">
-        <h3 style="color: #22d3ee; font-size: 1rem;">⚡ KIRA</h3>
+        <h3 style="color: #22d3ee; font-size: 1rem;">⚡ DUDE</h3>
         <p style="color: #5a6270; font-size: 0.8rem;">AIOps Assistant v1.0</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Kira's team (Bedrock Converse multi-agent):**")
+    st.markdown("**Dude's team (Bedrock Converse multi-agent):**")
     st.markdown("- 📋 **logs-agent**: CloudWatch Logs Insights")
     st.markdown("- 📊 **metrics-agent**: Prometheus (RED, per-pod, orders, alerts)")
     st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, pods, events")

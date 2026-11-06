@@ -1,7 +1,7 @@
-"""Kira — a multi-agent AIOps assistant built on the Amazon Bedrock Converse API.
+"""Dude — a multi-agent AIOps assistant built on the Amazon Bedrock Converse API.
 
-                    Kira (SUPERVISOR, Claude Sonnet)
-       ask_logs_agent   ask_metrics_agent   ask_deployment_agent      <- Kira's "tools" are other agents
+                    Dude (SUPERVISOR, Claude Sonnet)
+       ask_logs_agent   ask_metrics_agent   ask_deployment_agent      <- Dude's "tools" are other agents
             │                  │                     │
      logs agent (Haiku)  metrics agent (Haiku)  deployment agent (Haiku)
      error_summary       service_health         rollout_status, analysis_runs,
@@ -165,9 +165,9 @@ def ask_specialist(kind, question, trace):
                      [{"role": "user", "content": [{"text": question}]}], max_turns=6, max_tokens=1500, trace=trace)
 
 
-# =============================================================== Kira, the supervisor
+# =============================================================== Dude, the supervisor (display name; code names keep "kira")
 KIRA_SYSTEM = PLATFORM + """
-You are Kira, the AIOps site-reliability engineer for Telugu Pickles. You lead three specialist agents and
+You are Dude, the AIOps site-reliability engineer for Telugu Pickles. You lead three specialist agents and
 delegate to them instead of guessing:
   - ask_logs_agent: error messages and when they started (CloudWatch Logs)
   - ask_metrics_agent: error %, latency, traffic, per-pod comparison, orders/payments, alerts (Prometheus)
@@ -219,7 +219,7 @@ def ask_kira(question, history=None):
     messages.append({"role": "user", "content": [{"text": question}]})
 
     started = time.time()
-    answer = run_agent("kira", SUPERVISOR_MODEL, KIRA_SYSTEM, KIRA_TOOLS, functions, messages,
+    answer = run_agent("dude", SUPERVISOR_MODEL, KIRA_SYSTEM, KIRA_TOOLS, functions, messages,
                        max_turns=6, max_tokens=3000, trace=trace)
     trace["seconds"] = round(time.time() - started, 1)
     log.info(json.dumps({"question": question[:300], **trace}))
@@ -248,7 +248,7 @@ def handle_alarm(record):
         footer = f"\n\n---\nInvestigated in {result['seconds']} s, {len(result['steps'])} tool calls."
     except Exception as exc:  # humans must still hear about the alarm
         log.exception("investigation failed")
-        report, footer = f"Kira could not investigate ({type(exc).__name__}: {exc}). Check Grafana and Argo CD.", ""
+        report, footer = f"Dude could not investigate ({type(exc).__name__}: {exc}). Check Grafana and Argo CD.", ""
     log.info(json.dumps({"alarm": name, "report": report}))
     if REPORT_TOPIC:
         sns.publish(TopicArn=REPORT_TOPIC, Subject=f"[AIOps] {name}: incident report"[:100],
