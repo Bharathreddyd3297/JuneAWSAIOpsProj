@@ -64,3 +64,5 @@ The other services use rolling updates. See [`docs/reference/PROGRESSIVE-DELIVER
 
 Locally: `PAYMENT_DECLINE_RATE=0.5 docker compose up -d payment-service`.
 On EKS: edit `gitops/k8s/platform/config.yml`, commit, Argo CD syncs (restart pods to pick up env).
+
+After injecting chaos, ask the AIOps assistant Kira to explain it: see [projects/aiops-assistant](../aiops-assistant/README.md).
