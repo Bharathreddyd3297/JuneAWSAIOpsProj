@@ -49,6 +49,10 @@ scripts/             smoke-test.sh, push-to-ecr.sh, build-dashboard.js
 Kubernetes manifests live in [`/gitops`](../../gitops), Terraform in [`/projects/Infrastructure`](../Infrastructure),
 CI in [`/.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 
+**Release strategies on EKS** (Argo Rollouts): `frontend` is **blue-green** (preview on ALB port 8080, promoted from
+*Actions → Release control*), and `catalog-service` is **canary** with an automatic Prometheus error check.
+The other services use rolling updates. See [`docs/reference/PROGRESSIVE-DELIVERY.md`](../../docs/reference/PROGRESSIVE-DELIVERY.md).
+
 ## Fault injection (AIOps demo)
 
 | Env var | Service | Effect |
