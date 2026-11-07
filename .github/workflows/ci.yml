@@ -1,23 +1,11 @@
-# App CI — Telugu Pickles
-#
-#   security ─┐
-#   test ─────┼─> build (7 images in parallel) ─> deploy
-#   aws ──────┘    build -> Trivy image scan       update gitops/kustomization.yml
-#                  -> push to ECR (main only)      -> Argo CD sees the commit and rolls out
-#
-# GitHub settings needed (see docs/CICD-EKS-GUIDE.md):
-#   secret   AWS_ROLE_ARN   IAM role from projects/Infrastructure/bootstrap (OIDC, no keys)
-#   variable AWS_REGION     optional, default us-east-1
-# Without AWS_ROLE_ARN the pipeline still tests, builds and scans, then skips push/deploy.
 name: App CI
 
 on:
   push:
-    branches: [main]
+    branches: [azure-migration]
     paths:
       - "projects/telugu-pickles/**"
       - ".github/workflows/ci.yml"
-      # gitops/ is NOT listed: the bot's tag-bump commit must not re-trigger this pipeline
   pull_request:
     paths:
       - "projects/telugu-pickles/**"
@@ -32,12 +20,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   IMAGE_TAG: ${{ github.sha }}
   TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
-  TRIVY_DB: public.ecr.aws/aquasecurity/trivy-db:2
-  # push + deploy only for main (push or manual run), never for pull requests
-  RELEASE: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+  TRIVY_DB: ghcr.io/aquasecurity/trivy-db:2
+  RELEASE: ${{ github.ref == 'refs/heads/azure-migration' && github.event_name != 'pull_request' }}
 
 jobs:
   security:
@@ -66,40 +52,54 @@ jobs:
         working-directory: projects/telugu-pickles/frontend
         run: npm ci --no-audit --no-fund && npm run build
 
-  aws:
-    name: AWS access check
+  azure:
+    name: Azure OIDC and ACR check
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     outputs:
-      enabled: ${{ steps.check.outputs.enabled }}
+      enabled: ${{ steps.registry.outputs.enabled }}
       registry: ${{ steps.registry.outputs.registry }}
     steps:
       - id: check
         env:
-          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+          CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ACR_NAME: ${{ vars.ACR_NAME }}
         run: |
-          if [ -n "$ROLE" ]; then
+          if [ -n "$CLIENT_ID" ] && [ -n "$TENANT_ID" ] && [ -n "$SUBSCRIPTION_ID" ] && [ -n "$ACR_NAME" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=AWS not configured::Add the AWS_ROLE_ARN secret to push images to ECR and deploy. Build + scans still run."
+            echo "::notice title=Azure publishing not configured::Add Azure OIDC and ACR repository variables. Tests and image scans still run."
           fi
       - if: steps.check.outputs.enabled == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - id: registry
         if: steps.check.outputs.enabled == 'true'
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
         run: |
-          account=$(aws sts get-caller-identity --query Account --output text)
-          echo "registry=${account}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+          if ! az acr show --name "$ACR_NAME" >/dev/null 2>&1; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=ACR unavailable::Create the infrastructure first; images will not be pushed."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "registry=${ACR_NAME}.azurecr.io" >> "$GITHUB_OUTPUT"
+      - if: steps.check.outputs.enabled != 'true'
+        id: skipped
+        run: echo "enabled=false" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build · scan · push (${{ matrix.service }})
-    needs: [security, test, aws]
+    needs: [security, test, azure]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -112,21 +112,18 @@ jobs:
       LOCAL_IMAGE: telugu-pickles/${{ matrix.service }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-buildx-action@v3
-
       - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: projects/telugu-pickles/${{ matrix.service == 'frontend' && 'frontend' || 'services' }}
           build-args: SERVICE=${{ matrix.service }}
           platforms: linux/amd64
-          pull: true # always start from the latest patched base image
-          load: true # keep it local: scan BEFORE anything is pushed
+          pull: true
+          load: true
           tags: ${{ env.LOCAL_IMAGE }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-
       - name: Trivy image scan (fail on fixable CRITICAL)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image "$LOCAL_IMAGE" \
@@ -135,88 +132,88 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image "$LOCAL_IMAGE" \
             --db-repository "$TRIVY_DB" --scanners vuln --severity CRITICAL --ignore-unfixed \
             --exit-code 1 --quiet
-
-      - name: Configure AWS credentials
-        if: env.RELEASE == 'true' && needs.aws.outputs.enabled == 'true'
-        uses: aws-actions/configure-aws-credentials@v4
+      - if: env.RELEASE == 'true' && needs.azure.outputs.enabled == 'true'
+        uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Push to Amazon ECR
-        if: env.RELEASE == 'true' && needs.aws.outputs.enabled == 'true'
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Push to Azure Container Registry
+        if: env.RELEASE == 'true' && needs.azure.outputs.enabled == 'true'
         env:
-          REGISTRY: ${{ needs.aws.outputs.registry }}
+          REGISTRY: ${{ needs.azure.outputs.registry }}
+          ACR_NAME: ${{ vars.ACR_NAME }}
           REPO: telugu-pickles/${{ matrix.service }}
         run: |
-          if ! aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1; then
-            echo "::warning title=ECR repository missing::$REPO does not exist yet. Run the 'Infrastructure' workflow (apply) first, then re-run this workflow."
-            exit 0
-          fi
-          aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+          az acr login --name "$ACR_NAME"
           docker tag "$LOCAL_IMAGE" "$REGISTRY/$REPO:$IMAGE_TAG"
           docker push "$REGISTRY/$REPO:$IMAGE_TAG"
           echo "Pushed \`$REGISTRY/$REPO:$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Update gitops/ (Argo CD deploys)
-    needs: [aws, build]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.aws.outputs.enabled == 'true'
+    needs: [azure, build]
+    if: github.ref == 'refs/heads/azure-migration' && github.event_name != 'pull_request' && needs.azure.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # commit the new image tags
+      contents: write
       id-token: write
     env:
-      REGISTRY: ${{ needs.aws.outputs.registry }}
+      REGISTRY: ${{ needs.azure.outputs.registry }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
       SERVICES: frontend gateway auth-service catalog-service cart-service order-service payment-service
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
-
-      - uses: aws-actions/configure-aws-credentials@v4
+          ref: azure-migration
+      - uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Check every image reached ECR
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Check every image reached ACR
         id: images
         run: |
           for svc in $SERVICES; do
-            if ! aws ecr describe-images --repository-name "telugu-pickles/$svc" --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
-              echo "::warning title=Not deploying::telugu-pickles/$svc:$IMAGE_TAG is not in ECR (infrastructure not created yet?). gitops/ left unchanged."
+            if ! az acr repository show-tags --name "$ACR_NAME" --repository "telugu-pickles/$svc" --output tsv | grep -Fxq "$IMAGE_TAG"; then
+              echo "::warning title=Not deploying::telugu-pickles/$svc:$IMAGE_TAG is not in ACR. gitops/ left unchanged."
               echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
             fi
           done
           echo "ready=true" >> "$GITHUB_OUTPUT"
-
       - name: Point gitops/kustomization.yml at the new images
         if: steps.images.outputs.ready == 'true'
         run: |
           for svc in $SERVICES; do
-            yq -i "(.images[] | select(.name == \"telugu-pickles/${svc}\")) |= (.newName = \"${REGISTRY}/telugu-pickles/${svc}\" | .newTag = \"${IMAGE_TAG}\")" gitops/kustomization.yml
+            docker run --rm -v "$PWD:/work" -w /work mikefarah/yq:4.44.3 \
+              -i "(.images[] | select(.name == \"telugu-pickles/${svc}\")) |= (.newName = \"${REGISTRY}/telugu-pickles/${svc}\" | .newTag = \"${IMAGE_TAG}\")" \
+              gitops/kustomization.yml
           done
           git diff --stat
-
       - name: Commit and push
         if: steps.images.outputs.ready == 'true'
         run: |
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add gitops/kustomization.yml
           if git diff --staged --quiet; then echo "Images already deployed"; exit 0; fi
           git commit -m "deploy: telugu-pickles ${IMAGE_TAG::7}"
+          pushed=false
           for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && break
+            if git pull --rebase origin azure-migration && git push origin HEAD:azure-migration; then
+              pushed=true
+              break
+            fi
             sleep $((attempt * 5))
           done
+          if [ "$pushed" != true ]; then echo "::error::Could not push the GitOps image update."; exit 1; fi
           {
-            echo "### Deployed \`${IMAGE_TAG::7}\`"
-            echo "Argo CD syncs within ~1 minute. Watch: \`kubectl -n argocd get application telugu-pickles -w\`"
+            echo "### Deployed \`${IMAGE_TAG::7}\` to ACR"
+            echo "Argo CD syncs the updated GitOps commit. Check the AKS Argo CD application for health."
             echo ""
-            echo "| Service | Release strategy | What happens next |"
-            echo "|---|---|---|"
-            echo "| frontend | **Blue-green** | Green waits on ALB port **8080**. Test it, then **Actions → Release control → frontend → promote** |"
-            echo "| catalog-service | **Canary** | 25% → Prometheus check → 50% → check → 100%, automatic. Errors > 5% = automatic rollback |"
-            echo "| other services | Rolling update | Automatic |"
+            echo "| Service | Release strategy |"
+            echo "|---|---|"
+            echo "| frontend | **Blue-green**; inspect the preview with \`kubectl port-forward svc/frontend-preview 8080:80 -n telugu-pickles\`, then promote |"
+            echo "| catalog-service | **Canary** with Prometheus error-rate checks and automatic rollback |"
+            echo "| other services | Rolling update |"
           } >> "$GITHUB_STEP_SUMMARY"

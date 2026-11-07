@@ -1,4 +1,4 @@
-// Generates the Grafana dashboard JSON used locally AND on EKS (as a ConfigMap).
+// Generates the Grafana dashboard JSON used locally and on AKS (as a ConfigMap).
 //   node scripts/build-dashboard.js
 const fs = require('fs');
 const path = require('path');

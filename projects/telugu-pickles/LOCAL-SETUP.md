@@ -1,7 +1,7 @@
 # Run Telugu Pickles on Your Laptop
 
 This guide takes you from a fresh laptop to a working pickle store at **http://localhost:3000**.
-You do **not** need an AWS account, Node.js or PostgreSQL. Docker runs everything for you.
+You do **not** need an Azure account, Node.js or PostgreSQL. Docker runs everything for you.
 
 **Time:** about 20 minutes the first time (most of it is downloading). Later starts take under a minute.
 
@@ -264,5 +264,5 @@ docker compose logs --tail=50
 ## What's next
 
 Once it runs locally, the same images go to the cloud:
-**push to Amazon ECR → create EKS with Terraform → deploy with Argo CD → AIOps with Bedrock**.
-Step-by-step: [docs/CICD-EKS-GUIDE.md](../../docs/CICD-EKS-GUIDE.md). Architecture: [docs/telugu-pickles-system-design.html](../../docs/telugu-pickles-system-design.html) (open it in a browser).
+**push to Azure Container Registry → create AKS with Terraform → deploy with Argo CD → AIOps with Azure Functions**.
+Step-by-step: [docs/AKS-GUIDE.md](../../docs/AKS-GUIDE.md). Architecture: [docs/part2-workflow.md](../../docs/part2-workflow.md).

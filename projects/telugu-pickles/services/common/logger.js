@@ -1,6 +1,6 @@
 // Structured JSON logger.
-// One JSON object per line -> easy to search in CloudWatch Logs Insights
-// and easy for the Bedrock AIOps agent (Kira) to reason about.
+// One JSON object per line -> easy to search in Azure Monitor Logs
+// and easy for the Azure-hosted AIOps assistant (Kira) to reason about.
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 const minLevel = LEVELS[(process.env.LOG_LEVEL || 'info').toLowerCase()] || LEVELS.info;
 

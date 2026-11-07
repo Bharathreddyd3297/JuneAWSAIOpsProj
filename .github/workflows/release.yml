@@ -1,17 +1,3 @@
-# Release control — drive Argo Rollouts releases from GitHub (no laptop needed).
-#
-#   frontend         BLUE-GREEN : new version waits on ALB port 8080 -> "promote" switches shoppers to it
-#   catalog-service  CANARY     : 25% -> check -> 50% -> check -> 100%, automatic; "promote" skips the waits
-#
-#   status   show the release (steps, pods, analysis results)
-#   promote  go to the next step (blue-green: switch traffic to green)       [needs "production" approval]
-#   full     promote all the way to 100% at once                            [needs "production" approval]
-#   abort    stop the release, all traffic back to the stable version         [needs "production" approval]
-#   retry    restart an aborted release
-#   undo     roll back to the previous version (starts a new release of the old image)
-#
-# Note: Argo CD keeps Git as the truth. After "undo", also revert the deploy commit in Git,
-# otherwise the next Git change brings the new image back.
 name: Release control
 
 on:
@@ -37,8 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
-  CLUSTER: telugu-pickles-eks
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  CLUSTER: ${{ vars.AKS_CLUSTER_NAME || 'telugu-pickles-aks' }}
   NAMESPACE: telugu-pickles
   ROLLOUTS_VERSION: v1.10.2
   ROLLOUTS_SHA256: 355d62379d787a778f92903ce0b2fc1c1f4999d790d829370b6f1854a55f1cf9
@@ -47,26 +33,33 @@ jobs:
   release:
     name: ${{ inputs.action }} ${{ inputs.rollout }}
     runs-on: ubuntu-latest
-    # Changing live traffic needs an approval click (Settings -> Environments -> production -> reviewers)
-    environment: ${{ contains(fromJSON('["promote","full","abort"]'), inputs.action) && 'production' || '' }}
+    environment: production
     steps:
-      - name: Check AWS access is configured
+      - name: Check Azure configuration
         env:
-          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+          CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: |
-          if [ -z "$ROLE" ]; then echo "::error::Secret AWS_ROLE_ARN is not set (docs/CICD-EKS-GUIDE.md, Step 3)"; exit 1; fi
+          for value in "$CLIENT_ID" "$TENANT_ID" "$SUBSCRIPTION_ID" "$RESOURCE_GROUP"; do
+            if [ -z "$value" ]; then echo "::error::Set Azure OIDC and AKS repository variables."; exit 1; fi
+          done
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Connect kubectl to EKS
+      - name: Connect kubectl to AKS
         run: |
-          if ! aws eks describe-cluster --name "$CLUSTER" >/dev/null 2>&1; then
-            echo "::error::Cluster $CLUSTER does not exist. Run Actions -> Infrastructure -> apply first."; exit 1
+          if ! az aks show --resource-group "$RESOURCE_GROUP" --name "$CLUSTER" >/dev/null 2>&1; then
+            echo "::error::AKS cluster $CLUSTER does not exist. Apply Infrastructure first."; exit 1
           fi
-          aws eks update-kubeconfig --name "$CLUSTER" --region "$AWS_REGION"
+          az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$CLUSTER" --overwrite-existing
+          az aks install-cli
+          kubelogin convert-kubeconfig -l azurecli
 
       - name: Install the Argo Rollouts kubectl plugin (checksum-verified)
         run: |
@@ -97,13 +90,10 @@ jobs:
           ROLLOUT: ${{ inputs.rollout }}
           ACTION: ${{ inputs.action }}
         run: |
-          alb=$(kubectl -n "$NAMESPACE" get ingress frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
           {
             echo "### ${ACTION} \`${ROLLOUT}\`"
-            if [ "$ROLLOUT" = frontend ] && [ -n "$alb" ]; then
-              echo "| | URL |"; echo "|---|---|"
-              echo "| Live (blue / active) | http://${alb} |"
-              echo "| Preview (green) | http://${alb}:8080 |"
+            if [ "$ROLLOUT" = frontend ]; then
+              echo "Preview: \`kubectl port-forward svc/frontend-preview 8080:80 -n $NAMESPACE\` while the rollout is paused."
             fi
             echo '```'; cat status.txt 2>/dev/null; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

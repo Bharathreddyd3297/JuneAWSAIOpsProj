@@ -1,5 +1,5 @@
-# Non-secret configuration shared by all backend services.
-# Service discovery is plain Kubernetes DNS: http://<service-name>:<port>
+# Non-secret configuration shared by all backend services on AKS.
+# Service discovery uses Kubernetes DNS: http://<service-name>:<port>
 apiVersion: v1
 kind: ConfigMap
 metadata:

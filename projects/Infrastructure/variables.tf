@@ -1,134 +1,145 @@
-variable "region" {
-  description = "AWS region"
+variable "resource_group_name" {
+  description = "Resource group created by the bootstrap stack"
   type        = string
-}
-
-variable "vpc_name" {
-  description = "VPC name"
-  type        = string
-}
-
-variable "vpc_cidr" {
-  description = "VPC CIDR block"
-  type        = string
-}
-
-variable "subnets" {
-  description = "Public subnets, one per availability zone"
-  type = list(object({
-    name              = string
-    cidr_block        = string
-    availability_zone = string
-  }))
 }
 
 variable "cluster_name" {
-  description = "EKS cluster name"
+  description = "AKS cluster name"
   type        = string
+  default     = "telugu-pickles-aks"
 }
 
 variable "kubernetes_version" {
-  description = "EKS Kubernetes version"
-  type        = string
-  default     = "1.35"
-}
-
-variable "node_group_name" {
-  description = "EKS managed node group name"
-  type        = string
-}
-
-variable "instance_types" {
-  description = "Instance types for worker nodes"
-  type        = list(string)
-}
-
-variable "capacity_type" {
-  description = "ON_DEMAND or SPOT"
-  type        = string
-}
-
-variable "desired_size" {
-  description = "Desired number of worker nodes"
-  type        = number
-}
-
-variable "min_size" {
-  description = "Minimum number of worker nodes"
-  type        = number
-}
-
-variable "max_size" {
-  description = "Maximum number of worker nodes"
-  type        = number
-}
-
-variable "disk_size" {
-  description = "Worker node disk size (GiB)"
-  type        = number
-}
-
-variable "repositories" {
-  description = "ECR repositories to create"
-  type        = list(string)
-}
-
-variable "github_actions_role_name" {
-  description = "IAM role created by ./bootstrap for GitHub Actions (always made a cluster admin)"
-  type        = string
-  default     = "telugu-pickles-github-actions"
-}
-
-variable "cluster_admin_arns" {
-  description = "Extra IAM users/roles that get kubectl admin access (e.g. your laptop IAM user)"
-  type        = list(string)
-  default     = []
-}
-
-variable "gitops_repo_url" {
-  description = "Git repository Argo CD watches (must contain gitops/)"
-  type        = string
-}
-
-variable "gitops_revision" {
-  description = "Branch Argo CD follows"
-  type        = string
-  default     = "main"
-}
-
-variable "domain_name" {
-  description = "Domain with a Route 53 hosted zone (created by ./bootstrap). Empty = no DNS/HTTPS; the shop is served on the load balancer's AWS hostname."
+  description = "AKS Kubernetes version; empty selects the current Azure default"
   type        = string
   default     = ""
 }
 
-variable "log_retention_days" {
-  description = "CloudWatch retention for application logs"
+variable "node_vm_size" {
+  description = "Azure VM SKU for the AKS system node pool; choose one available in the selected region"
+  type        = string
+}
+
+variable "desired_nodes" {
+  description = "Initial node count"
   type        = number
-  default     = 7
+  default     = 2
 }
 
-# ---- AIOps (Bedrock multi-agent) ----
-variable "aiops_enabled" {
-  description = "Create Kira (Bedrock multi-agent Lambda), its read-only cluster access and the alarm -> report flow"
-  type        = bool
-  default     = true
+variable "min_nodes" {
+  description = "Minimum autoscaled node count"
+  type        = number
+  default     = 2
 }
 
-variable "aiops_supervisor_model" {
-  description = "Bedrock inference profile for Kira, the supervisor agent"
+variable "max_nodes" {
+  description = "Maximum autoscaled node count"
+  type        = number
+  default     = 3
+}
+
+variable "node_os_disk_size_gb" {
+  description = "AKS node OS disk size in GiB"
+  type        = number
+  default     = 64
+}
+
+variable "name_prefix" {
+  description = "Short prefix used for Azure resource names"
   type        = string
-  default     = "us.amazon.nova-pro-v1:0"
+  default     = "telugu-pickles"
 }
 
-variable "aiops_specialist_model" {
-  description = "Bedrock inference profile for the logs / metrics / deployment agents"
+variable "vnet_address_space" {
+  description = "Address space for the AKS virtual network"
   type        = string
-  default     = "us.amazon.nova-lite-v1:0"
+  default     = "10.10.0.0/16"
 }
 
-variable "aiops_alert_email" {
-  description = "Email for automatic incident reports (AWS sends a confirmation mail first). Empty = no email."
+variable "aks_subnet_prefix" {
+  description = "Subnet prefix for AKS nodes"
+  type        = string
+  default     = "10.10.0.0/22"
+}
+
+variable "service_cidr" {
+  description = "AKS Kubernetes service address range; must not overlap the VNet"
+  type        = string
+  default     = "10.20.0.0/16"
+}
+
+variable "dns_service_ip" {
+  description = "DNS service IP inside service_cidr"
+  type        = string
+  default     = "10.20.0.10"
+}
+
+variable "github_actions_principal_id" {
+  description = "Principal/object ID of the GitHub OIDC identity created by bootstrap"
+  type        = string
+}
+
+variable "aks_admin_principal_ids" {
+  description = "Entra object IDs of human operators who need kubectl cluster-admin access"
+  type        = list(string)
+  default     = []
+}
+
+variable "log_retention_days" {
+  description = "Log Analytics retention in days"
+  type        = number
+  default     = 30
+}
+
+variable "function_max_instances" {
+  description = "Maximum Flex Consumption instances for the AIOps Function"
+  type        = number
+  default     = 5
+}
+
+variable "azure_openai_location" {
+  description = "Region for the AIOps model endpoint"
+  type        = string
+  default     = "southindia"
+}
+
+variable "azure_openai_model_name" {
+  description = "Azure OpenAI model used by the AIOps assistant"
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
+variable "azure_openai_model_version" {
+  description = "Version of the Azure OpenAI model"
+  type        = string
+  default     = "2024-07-18"
+}
+
+variable "azure_openai_deployment_name" {
+  description = "Name assigned to the AIOps model deployment"
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
+variable "azure_openai_model_capacity" {
+  description = "Global Standard model throughput in thousands of tokens per minute"
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.azure_openai_model_capacity >= 1
+    error_message = "Azure OpenAI model capacity must be at least 1 (1,000 tokens per minute)."
+  }
+}
+
+variable "azure_openai_api_version" {
+  description = "Azure OpenAI API version supported by the selected endpoint"
+  type        = string
+  default     = "2024-10-21"
+}
+
+variable "alert_email" {
+  description = "Optional email receiver for Azure Monitor alerts"
   type        = string
   default     = ""
 }

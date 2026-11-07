@@ -1,13 +1,11 @@
-# gp3 EBS volumes via the EBS CSI driver (installed by Terraform with IRSA).
-# Newer EKS versions no longer mark gp2 as default, so we define our own class.
+# Azure Disk CSI volumes for AKS PostgreSQL data.
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: gp3
-provisioner: ebs.csi.aws.com
+  name: telugu-pickles-disk
+provisioner: disk.csi.azure.com
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 parameters:
-  type: gp3
-  encrypted: "true"
+  skuName: StandardSSD_LRS

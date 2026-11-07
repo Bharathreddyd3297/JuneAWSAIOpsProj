@@ -1,42 +1,60 @@
-output "cluster_name" {
-  value = module.eks.cluster_name
+output "resource_group_name" {
+  value = data.azurerm_resource_group.app.name
 }
 
-output "region" {
-  value = var.region
+output "location" {
+  value = data.azurerm_resource_group.app.location
+}
+
+output "cluster_name" {
+  value = azurerm_kubernetes_cluster.app.name
 }
 
 output "kubeconfig_command" {
-  description = "Run this to point kubectl at the cluster"
-  value       = "aws eks update-kubeconfig --name ${module.eks.cluster_name} --region ${var.region}"
+  description = "Run this to configure kubectl after Azure CLI authentication"
+  value       = "az aks get-credentials --resource-group ${data.azurerm_resource_group.app.name} --name ${azurerm_kubernetes_cluster.app.name}"
 }
 
-output "ecr_urls" {
-  value = module.ecr.repository_urls
+output "acr_name" {
+  value = azurerm_container_registry.app.name
 }
 
-output "app_log_group" {
-  description = "CloudWatch log group that receives the Telugu Pickles pod logs"
-  value       = module.platform.app_log_group
+output "acr_login_server" {
+  value = azurerm_container_registry.app.login_server
 }
 
-output "urls" {
-  description = "Where to open things"
-  value       = module.platform.urls
+output "log_analytics_workspace_id" {
+  value = azurerm_log_analytics_workspace.app.workspace_id
 }
 
-output "grafana_admin_password" {
-  description = "terraform output -raw grafana_admin_password"
-  value       = module.platform.grafana_admin_password
-  sensitive   = true
+output "key_vault_name" {
+  value = azurerm_key_vault.app.name
 }
 
-output "aiops" {
-  description = "Kira (Bedrock multi-agent Lambda) - used by projects/aiops-assistant/app.py"
-  value = var.aiops_enabled ? {
-    kira_function    = module.aiops[0].kira_function
-    report_topic_arn = module.aiops[0].report_topic_arn
-    ask_from_cli     = "aws lambda invoke --region ${var.region} --function-name ${module.aiops[0].kira_function} --cli-read-timeout 300 --payload '{\"question\":\"Is everything healthy?\"}' --cli-binary-format raw-in-base64-out out.json"
-    chat_ui          = "cd projects/aiops-assistant && pip install -r requirements.txt && streamlit run app.py"
-  } : null
+output "aiops_function_app_name" {
+  value = azurerm_function_app_flex_consumption.aiops.name
+}
+
+output "aiops_function_url" {
+  value = "https://${azurerm_function_app_flex_consumption.aiops.name}.azurewebsites.net/api/aiops/ask"
+}
+
+output "azure_openai_account_name" {
+  value = azurerm_cognitive_account.aiops.name
+}
+
+output "azure_openai_endpoint" {
+  value = azurerm_cognitive_account.aiops.endpoint
+}
+
+output "azure_openai_deployment_name" {
+  value = azurerm_cognitive_deployment.aiops.name
+}
+
+output "application_insights_name" {
+  value = azurerm_application_insights.aiops.name
+}
+
+output "monitor_action_group_id" {
+  value = try(azurerm_monitor_action_group.alerts[0].id, null)
 }

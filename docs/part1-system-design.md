@@ -23,7 +23,7 @@ This crash course breaks down the 12 core system design pillars behind modern De
 
 Every concept connects directly to something running in this project. This is not just theory.
 
-In the real world, nobody cares if you can define Kubernetes or list AWS services. What actually matters is whether you can design systems that scale, stay reliable under failure, and are operable in production. Every architectural decision is a trade-off — and if you don't understand those trade-offs, your system will break in ways you didn't anticipate.
+In the real world, nobody cares if you can define Kubernetes or list cloud services. What actually matters is whether you can design systems that scale, stay reliable under failure, and are operable in production. Every architectural decision is a trade-off — and if you don't understand those trade-offs, your system will break in ways you didn't anticipate.
 
 ---
 
@@ -41,7 +41,7 @@ So the system gets split across multiple machines that communicate over the netw
 
 **The tradeoff:** Now you have network latency, partial failures, and consistency challenges. A request might reach machine A but the response never comes back. Did it succeed? Did it fail? This is the core challenge of distributed systems — designing for failure as a default, not an exception.
 
-**In this project:** The entire platform is a distributed system. The frontend, 6 backend services, database, Prometheus, Grafana — all running as separate containers across multiple nodes in an EKS cluster. Each service is independently deployed and communicates over the network.
+**In this project:** The entire platform is a distributed system. The frontend, 6 backend services, database, Prometheus, Grafana — all running as separate containers across multiple nodes in an AKS cluster. Each service is independently deployed and communicates over the network.
 
 ---
 
@@ -117,9 +117,9 @@ Traffic is growing. You've scaled to 5 instances of your product service. How do
 
 ### Layer 4 vs Layer 7
 
-**L4 (Transport Layer):** Operates on TCP/UDP. Fast, low overhead. Routes based on IP and port. Doesn't understand HTTP. AWS Network Load Balancer (NLB) operates at L4.
+**L4 (Transport Layer):** Operates on TCP/UDP. Fast, low overhead. Routes based on IP and port. Doesn't understand HTTP. Azure Load Balancer operates at L4.
 
-**L7 (Application Layer):** Understands HTTP, headers, URLs, cookies. Can route based on request path, content type, or host header. AWS Application Load Balancer (ALB) and Nginx operate at L7.
+**L7 (Application Layer):** Understands HTTP, headers, URLs, cookies. Can route based on request path, content type, or host header. Azure Application Gateway and Nginx operate at L7.
 
 ### Algorithms
 
@@ -134,7 +134,7 @@ Traffic is growing. You've scaled to 5 instances of your product service. How do
 
 - **ClusterIP** — Internal only. Distributes traffic across pods using round robin via kube-proxy.
 - **NodePort** — Exposes the service on a port on every node. Used for development.
-- **LoadBalancer** — Provisions a cloud load balancer (ALB/NLB on AWS) for external access.
+- **LoadBalancer** — Provisions a cloud load balancer (Azure Load Balancer in this AKS setup) for external access.
 - **Ingress** — Manages external HTTP/HTTPS routing with rules.
 
 **In this project:** Inside the cluster, Kubernetes ClusterIP services load balance traffic between pods. The gateway service is the single external entry point. In production you'd put an ALB in front of it.
@@ -160,7 +160,7 @@ High availability means designing the system so that no single failure causes do
 
 **RPO (Recovery Point Objective):** How much data loss is acceptable? If your database is backed up every hour, your RPO is one hour.
 
-**In this project:** We provision subnets across three availability zones — `us-east-1a`, `us-east-1b`, `us-east-1c`. The EKS node group spans all three. If one zone goes down, pods get rescheduled onto nodes in the remaining zones.
+**In this project:** The AKS cluster uses an Azure virtual network and autoscaled node pool. Select availability zones supported by your chosen region/SKU; Kubernetes reschedules pods onto healthy nodes when capacity is available.
 
 ---
 
@@ -230,11 +230,11 @@ Security isn't a feature you add at the end. It's layered throughout the entire 
 
 **Kubernetes Secrets:** Credentials are stored as Kubernetes Secrets — not hardcoded in environment variables or code. Mounted into pods at runtime.
 
-**IAM Roles — Least Privilege:** Every AWS resource gets only the permissions it needs. Our EKS nodes have IAM roles that allow them to pull images from ECR — nothing more. If a node is compromised, the blast radius is minimal.
+**Azure RBAC — Least Privilege:** Identities receive only the permissions they need. The AKS kubelet identity can pull images from ACR; the AIOps managed identity is read-only for logs and cluster resources.
 
 **Network Policies:** Define which pods can talk to which other pods. By default every pod can reach every other pod. In a hardened production setup, you'd restrict this — the auth service only accepts traffic from the gateway.
 
-**In this project:** JWT authentication in the auth service, bcrypt for password hashing, Kubernetes Secrets for database credentials, IAM roles for ECR access, and Helmet.js for HTTP security headers on every service.
+**In this project:** JWT authentication in the auth service, bcrypt for password hashing, Kubernetes Secrets for database credentials, Azure managed identity for ACR access, and Helmet.js for HTTP security headers on every service.
 
 ---
 
@@ -248,7 +248,7 @@ A user reports the app is slow. Your system has 20 services. Which one is the bo
 
 **Metrics:** Quantitative measurements over time — request rate, error rate, CPU usage, response time, queue depth. Answers: *is the system behaving normally?* → Prometheus + Grafana.
 
-**Logs:** A timestamped record of events — every request received, every error thrown, every database query. Answers: *what exactly happened?* → CloudWatch, ELK Stack.
+**Logs:** A timestamped record of events — every request received, every error thrown, every database query. Answers: *what exactly happened?* → Azure Monitor / Log Analytics, or an ELK stack.
 
 **Traces:** Follow a single request as it moves through multiple services. A user clicks checkout — the request hits the gateway, goes to the order service, calls the product service, writes to the database. A trace shows the full journey with timing for each step. Answers: *where did this specific request slow down?* → Jaeger, OpenTelemetry.
 
@@ -290,7 +290,7 @@ You've built a new feature. How do you get it to production without breaking any
 
 **Canary Release** is what Netflix, Facebook, and Google use for major releases — send 5% of traffic to the new version, monitor metrics, gradually increase.
 
-**In this project:** Kubernetes uses rolling updates by default. Every new image pushed to ECR gets deployed by updating the image tag in the GitOps manifests — ArgoCD rolls it out with zero downtime.
+**In this project:** Kubernetes uses rolling updates by default. Every new image pushed to ACR gets deployed by updating the image tag in the GitOps manifests — Argo CD rolls it out with zero downtime.
 
 ---
 
@@ -310,7 +310,7 @@ Someone SSH's into a production server and makes a manual change. Three months l
 
 **The audit trail:** Every change is a Git commit — who made it, when, why, and what exactly changed. Rolling back is a `git revert`. The entire history of your infrastructure is in version control.
 
-**In this project:** The entire Kubernetes configuration lives in `gitops/k8s/`. The Argo CD Application (created by Terraform in `projects/Infrastructure/modules/platform`) tells ArgoCD to watch the `main` branch. Push a change — ArgoCD deploys it. Change an image tag — ArgoCD rolls it out. The cluster always reflects what's in Git.
+**In this project:** The entire Kubernetes configuration lives in `gitops/k8s/`. The Argo CD Application (created by Terraform in `projects/Infrastructure/modules/platform`) tells ArgoCD to watch the `azure-migration` branch, keeping the original AWS `main` branch untouched. Push a change — ArgoCD deploys it. Change an image tag — ArgoCD rolls it out. The cluster always reflects what's in Git.
 
 ---
 
@@ -320,15 +320,15 @@ Every tool in this project exists to solve one of these problems:
 
 | Problem | System Design Concept | Tool in This Project |
 |---------|----------------------|---------------------|
-| One server isn't enough | Distributed Systems | EKS cluster |
+| One server isn't enough | Distributed Systems | AKS cluster |
 | Tightly coupled codebase | Microservices | 7 independent services |
 | Services finding each other | Service Discovery | Kubernetes DNS |
 | Traffic distribution | Load Balancing | ClusterIP + ALB |
 | Handling failures | High Availability | Multi-AZ subnets |
 | Handling traffic spikes | Autoscaling | HPA + KEDA |
 | Containers crashing | Self-healing | Kubernetes probes + ReplicaSets |
-| Credential leaks | Security | IAM + Secrets + JWT |
-| Finding the bottleneck | Observability | Prometheus + Grafana + CloudWatch |
+| Credential leaks | Security | Azure RBAC + Managed Identity + Secrets + JWT |
+| Finding the bottleneck | Observability | Prometheus + Grafana + Azure Monitor |
 | Releasing safely | Deployment Strategies | Rolling updates |
 | Manual changes breaking things | GitOps | ArgoCD |
 

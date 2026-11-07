@@ -1,28 +1,26 @@
 """
 AIOps Assistant — Streamlit chat UI for Dude.
-Dude is a multi-agent AIOps assistant running in AWS Lambda (projects/aiops-assistant/lambda/kira.py):
-a supervisor model delegates to logs, metrics and deployment agents via the Bedrock Converse API.
+Dude is a multi-agent AIOps assistant backed by the Azure Functions app in `function/`.
+A supervisor delegates to Azure Monitor Logs, Prometheus, and AKS tools through a
+tool-calling Azure-hosted model deployment.
 
-Run (the AWS CLI must be logged in to the account where Terraform created the Lambda):
+Run (sign in with Azure CLI so the Function can use your Azure identity):
     pip install -r requirements.txt
     streamlit run app.py
 """
 
-import json
 import os
 import uuid
 
-import boto3
+import requests
 import streamlit as st
-from botocore.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # --- Config ---
-# AWS credentials come from your normal AWS CLI login (aws configure / SSO). No keys in files.
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-KIRA_FUNCTION = os.getenv("KIRA_FUNCTION", "telugu-pickles-kira")
+FUNCTION_URL = os.getenv("AIOPS_FUNCTION_URL", "").rstrip("/")
+FUNCTION_KEY = os.getenv("AIOPS_FUNCTION_KEY", "")
 
 
 # --- Page Config ---
@@ -158,39 +156,48 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
 
-# --- Lambda client ---
-@st.cache_resource
-def get_lambda_client():
-    # an investigation with three specialists can take up to ~2 minutes
-    return boto3.client("lambda", region_name=AWS_REGION,
-                        config=Config(read_timeout=310, retries={"max_attempts": 0}))
-
-
+# --- Azure Functions API ---
 @st.cache_data(ttl=60, show_spinner=False)
 def kira_status():
-    """Returns (ok, detail): is the assistant Lambda there, and which models does it use?"""
+    """Returns whether the configured Azure Functions API is reachable and ready."""
+    if not FUNCTION_URL:
+        return False, "AIOPS_FUNCTION_URL is not configured."
+    if not FUNCTION_KEY:
+        return False, "AIOPS_FUNCTION_KEY is not configured."
     try:
-        cfg = get_lambda_client().get_function_configuration(FunctionName=KIRA_FUNCTION)
-        env = cfg.get("Environment", {}).get("Variables", {})
-        return True, f"{env.get('SUPERVISOR_MODEL', '?')} + {env.get('SPECIALIST_MODEL', '?')}"
-    except Exception as exc:
+        response = requests.get(
+            FUNCTION_URL.rsplit("/", 1)[0] + "/health",
+            headers={"x-functions-key": FUNCTION_KEY},
+            timeout=15,
+        )
+        response.raise_for_status()
+        status = response.json()
+        if not status.get("ready"):
+            return False, "Function app is reachable, but its model or platform configuration is incomplete."
+        return True, status.get("model", "Azure model configured")
+    except (requests.RequestException, ValueError) as exc:
         return False, str(exc)
 
 
 def ask_kira(prompt: str) -> dict:
-    """Invoke the assistant Lambda with the question and the earlier chat turns."""
+    """Call the Azure Functions HTTP endpoint with the question and chat history."""
+    if not FUNCTION_URL or not FUNCTION_KEY:
+        return {"answer": "Configure AIOPS_FUNCTION_URL and AIOPS_FUNCTION_KEY first.", "steps": []}
     history = [{"role": m["role"], "text": m["content"]} for m in st.session_state.messages[:-1][-10:]]
     try:
-        resp = get_lambda_client().invoke(
-            FunctionName=KIRA_FUNCTION,
-            Payload=json.dumps({"question": prompt, "history": history}).encode(),
+        response = requests.post(
+            FUNCTION_URL,
+            headers={"x-functions-key": FUNCTION_KEY},
+            json={"question": prompt, "history": history},
+            timeout=300,
         )
-        result = json.loads(resp["Payload"].read())
-        if resp.get("FunctionError"):
-            return {"answer": f"Dude failed: {result.get('errorMessage', result)}", "steps": []}
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict) or not isinstance(result.get("answer"), str):
+            return {"answer": "Azure Functions returned an invalid response.", "steps": []}
         return result
-    except Exception as e:
-        return {"answer": f"Error: {e}", "steps": []}
+    except (requests.RequestException, ValueError) as exc:
+        return {"answer": f"Azure Functions request failed: {exc}", "steps": []}
 
 
 # --- Header ---
@@ -211,10 +218,12 @@ if not config_ok:
         <span style="color: #ef4444;">NOT CONFIGURED</span>
     </div>
     """, unsafe_allow_html=True)
-    st.error(f"Lambda `{KIRA_FUNCTION}` not reachable in {AWS_REGION}: {status_detail}")
-    st.markdown("1. Check the AWS CLI works: `aws sts get-caller-identity`\n"
-                "2. Create it: **Actions -> Infrastructure -> apply** (with `aiops_enabled = true`)\n"
-                "3. Wrong region? Set `AWS_REGION=us-east-1` in `.env`")
+    st.error(f"Azure Functions API is not ready: {status_detail}")
+    st.markdown(
+        "1. Set `AIOPS_FUNCTION_URL` and `AIOPS_FUNCTION_KEY` in `.env`.\n"
+        "2. Deploy the Azure Function app and configure its Azure model endpoint.\n"
+        "3. Ensure its managed identity can query Log Analytics and read the AKS API."
+    )
     st.stop()
 
 
@@ -225,8 +234,6 @@ st.markdown(f"""
     <span style="color: #22d3ee;">ONLINE</span>
     <span style="color: #2a3040;">|</span>
     <span style="color: #5a6270;">Session: {st.session_state.session_id[:8]}</span>
-    <span style="color: #2a3040;">|</span>
-    <span style="color: #5a6270;">Region: {AWS_REGION}</span>
     <span style="color: #2a3040;">|</span>
     <span style="color: #5a6270;">Models: {status_detail}</span>
 </div>
@@ -300,8 +307,8 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Dude's team (Bedrock Converse multi-agent):**")
-    st.markdown("- 📋 **logs-agent**: CloudWatch Logs Insights")
+    st.markdown("**Dude's team (Azure model tool-calling):**")
+    st.markdown("- 📋 **logs-agent**: Azure Monitor Logs / Log Analytics")
     st.markdown("- 📊 **metrics-agent**: Prometheus (RED, per-pod, orders, alerts)")
     st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, pods, events")
 

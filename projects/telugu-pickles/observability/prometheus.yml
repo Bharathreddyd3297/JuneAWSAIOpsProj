@@ -1,4 +1,4 @@
-# Local Prometheus (docker compose). On EKS the kube-prometheus-stack
+# Local Prometheus (docker compose). On AKS the kube-prometheus-stack
 # discovers the same /metrics endpoints through a ServiceMonitor instead.
 global:
   scrape_interval: 15s
