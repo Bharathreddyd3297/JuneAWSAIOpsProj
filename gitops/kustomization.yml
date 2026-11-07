@@ -32,23 +32,23 @@ generatorOptions:
 # App CI rewrites newName/newTag here after pushing to ECR (.github/workflows/ci.yml, "deploy" job)
 images:
   - name: telugu-pickles/frontend
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/frontend
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/frontend
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/gateway
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/auth-service
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/auth-service
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/auth-service
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/catalog-service
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/catalog-service
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/catalog-service
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/cart-service
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/cart-service
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/cart-service
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/order-service
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/order-service
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/order-service
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
   - name: telugu-pickles/payment-service
-    newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/payment-service
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/payment-service
     newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"

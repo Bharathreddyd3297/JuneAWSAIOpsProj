@@ -84,7 +84,7 @@ Secrets stay out of Git. Everything else about the app is in Git.
 2. The CI bot commits to `gitops/kustomization.yml`:
    ```yaml
    - name: telugu-pickles/gateway
-     newName: 229378727493.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
+     newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
      newTag: "9f3c2e1…"
    ```
 3. Within 60 s Argo CD sees a new commit → renders `gitops/` with Kustomize → the Deployment's image differs → **OutOfSync**.
