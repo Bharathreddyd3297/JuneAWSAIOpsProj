@@ -12,8 +12,8 @@ const HERO_JARS = [
 ];
 
 const PROMISES = [
-  { icon: '🥜', title: 'Cold-pressed groundnut oil', text: 'Every jar is made with wood-pressed oil from Anantapur groundnuts.' },
-  { icon: '🌶️', title: 'Guntur chillies, sun-dried', text: 'We dry and pound our own chillies and mustard — no ready masalas.' },
+  { icon: '🥜', title: 'Cold-pressed Olive oil', text: 'Every jar is made with wood-pressed oil from Anantapur groundnuts.' },
+  { icon: '🌶️', title: 'Kashmiri chillies, sun-dried', text: 'We dry and pound our own chillies and mustard — no ready masalas.' },
   { icon: '🏺', title: 'Matured in jaadis', text: 'Mango pickles rest in ceramic jaadis for 21 days, the way Ammamma made them.' },
   { icon: '🚫', title: 'No artificial preservatives', text: 'Only salt, oil and spices. Just like home.' },
 ];

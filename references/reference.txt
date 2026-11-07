@@ -1,0 +1,13 @@
+I want to create multi service Fashion page
+take this entire project as reference
+
+
+my starategies
+
+1. Azure
+2. Azure devops
+3. Terraform
+4. ACR
+5. Bluegreen
+6. Argo CD
+7. 4Linux vm's
