@@ -35,7 +35,7 @@ export default function Home() {
           <div className="hero-copy">
             <p className="hero-te">అమ్మ చేతి రుచి</p>
             <h1>
-              Authentic Telugu pickles,
+              ANy kind of pickles are available,
               <br /> <span>made the Amma way.</span>
             </h1>
             <p className="hero-sub">
