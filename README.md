@@ -2,6 +2,13 @@
 
 > A full end-to-end DevOps project with AIOps integration — so you can connect the dots between how AI is helping automate DevOps tasks today.
 
+> ### 🧭 Students: start here → [`student-guide.html`](student-guide.html)
+> One illustrated, step-by-step page that takes you from **your laptop** to the shop running on **Amazon EKS**, released with **blue-green and canary**, watched by **Prometheus and Grafana**, and explained by **Dude**, a multi-agent AIOps assistant on **Amazon Bedrock (Nova)**. It covers 16 stops, with copy buttons, diagrams, a progress tracker, troubleshooting and a cost table.
+>
+> **How to open it:** GitHub shows `.html` files as source code, so open the guide in your browser instead:
+> - **Cloned the repo?** Double-click `student-guide.html` in the repo root, or run `start student-guide.html` (Windows), `open student-guide.html` (macOS) or `xdg-open student-guide.html` (Linux).
+> - **Not cloned?** Click **Code → Download ZIP**, unzip it, and double-click `student-guide.html`.
+
 > **The demo app is Telugu Pickles (తెలుగు పచ్చళ్ళు)**, an Indian veg & non-veg pickle store built as 6 microservices + React.
 > - Run it on your laptop: [`projects/telugu-pickles/LOCAL-SETUP.md`](projects/telugu-pickles/LOCAL-SETUP.md)
 > - Deploy it to AWS EKS with GitHub Actions + Argo CD: [`docs/CICD-EKS-GUIDE.md`](docs/CICD-EKS-GUIDE.md)
@@ -37,6 +44,7 @@ By the end of this series, you won't just know tools — you'll understand how r
 
 ```
 devops-ai-playbook/
+├── student-guide.html             # START HERE: laptop -> EKS -> blue-green/canary -> Dude on Bedrock (open in browser)
 ├── docs/
 │   ├── CICD-EKS-GUIDE.md          # Student guide: git push -> GitHub Actions -> EKS -> Argo CD -> Grafana
 │   ├── telugu-pickles-system-design.html  # End-to-end system design (open in browser)
@@ -49,7 +57,7 @@ devops-ai-playbook/
 │   │   └── docker-compose.yml     #   Local stack incl. Prometheus + Grafana
 │   ├── Infrastructure/            # Terraform: VPC, EKS, ECR, Argo CD, Grafana, CloudWatch, DNS
 │   │   └── bootstrap/             #   one-time: S3 state bucket + GitHub OIDC role (+ Route 53 zone)
-│   └── aiops-assistant/           # Bedrock Agent — Kira (Part 4)
+│   └── aiops-assistant/           # Dude: multi-agent AIOps on Bedrock Nova + Lambda (Part 4)
 ├── gitops/
 │   ├── kustomization.yml          # Kustomize entry point (Argo CD deploys this; CI bumps image tags)
 │   └── k8s/                       # All Kubernetes manifests
@@ -123,7 +131,7 @@ Then we actually build the project. You'll see:
 ---
 
 ### Part 4 — AIOps Integration
-[`projects/aiops-assistant/README.md`](projects/aiops-assistant/README.md)
+[`projects/aiops-assistant/README.md`](projects/aiops-assistant/README.md) · hands-on: stops 12–14 of [`student-guide.html`](student-guide.html)
 
 Finally, we explore how AI helps with:
 
@@ -169,5 +177,6 @@ Once you implement the project:
 | GitOps | ArgoCD + Kustomize |
 | Monitoring | Prometheus + Grafana |
 | Log Forwarding | AWS Fluent Bit → CloudWatch Logs (+ metric filter & alarm) |
-| AIOps | AWS Bedrock Agent (Kira) |
+| Progressive delivery | Argo Rollouts (blue-green frontend, canary catalog-service) |
+| AIOps | Dude: Amazon Bedrock Converse API multi-agent (Nova Pro + Nova Lite) on AWS Lambda |
 | AI Assistant | Claude Code + MCP Servers |

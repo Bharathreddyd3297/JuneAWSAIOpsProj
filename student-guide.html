@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Telugu Pickles Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a "route map" — a sticky vertical line of stations on the left, one long reading column on the right. */
+:root{
+  --paper:#f5f7f1; --surface:#ffffff; --sunk:#ecf0e8; --ink:#16241e; --muted:#56675e; --line:#d3dccf;
+  --leaf:#2d6a4c; --leaf-soft:#dcebe1; --turmeric:#b97a06; --turmeric-soft:#fbefd2; --chili:#b8381f; --chili-soft:#f8e1da;
+  --sky:#2b5f8a; --sky-soft:#dde9f3;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#0e1612; --surface:#141f1a; --sunk:#101a15; --ink:#e3ebe5; --muted:#93a49a; --line:#28372f;
+  --leaf:#72c196; --leaf-soft:#173126; --turmeric:#f0b443; --turmeric-soft:#3a2d10; --chili:#f0806a; --chili-soft:#3b1c15;
+  --sky:#7fb3df; --sky-soft:#15283a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --paper:#0e1612; --surface:#141f1a; --sunk:#101a15; --ink:#e3ebe5; --muted:#93a49a; --line:#28372f;
+  --leaf:#72c196; --leaf-soft:#173126; --turmeric:#f0b443; --turmeric-soft:#3a2d10; --chili:#f0806a; --chili-soft:#3b1c15;
+  --sky:#7fb3df; --sky-soft:#15283a; color-scheme:dark }
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:16px}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+body{background:var(--paper); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.62;
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px))}
+a{color:var(--leaf); text-underline-offset:3px}
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--turmeric); outline-offset:2px; border-radius:4px}
+code{font-family:var(--mono); font-size:.88em; background:var(--sunk); border:1px solid var(--line); padding:.05em .35em; border-radius:4px; overflow-wrap:anywhere}
+h1,h2,h3{font-family:var(--display); text-wrap:balance; line-height:1.15; margin:0}
+h2{font-size:clamp(1.6rem, 3.2vw, 2.15rem); font-weight:800; letter-spacing:-.01em}
+h3{font-size:1.18rem; font-weight:700; margin-top:1.9rem}
+p{margin:0}
+.shell{max-width:1200px; margin:0 auto; display:grid; grid-template-columns:250px minmax(0,1fr); gap:48px; padding-block:28px 80px}
+
+/* ---------- route nav ---------- */
+.route{position:sticky; top:env(safe-area-inset-top,0px); align-self:start; max-height:100vh; overflow:auto; padding-block:12px 24px}
+.route .brand{font-family:var(--display); font-weight:800; font-size:1.05rem; line-height:1.2}
+.route .brand small{display:block; font-family:var(--body); font-weight:400; font-size:.8rem; color:var(--muted); margin-top:2px}
+.progress{margin:14px 0 18px; font-size:.8rem; color:var(--muted)}
+.bar{height:6px; background:var(--sunk); border:1px solid var(--line); border-radius:99px; overflow:hidden; margin-top:6px}
+.bar i{display:block; height:100%; width:0; background:var(--leaf); transition:width .3s}
+.stations{list-style:none; margin:0; padding:0; position:relative}
+.stations::before{content:""; position:absolute; left:9px; top:10px; bottom:10px; width:3px; background:var(--line); border-radius:2px}
+.stations li a{display:grid; grid-template-columns:22px 1fr; gap:10px; align-items:start; padding:5px 0; color:var(--muted); text-decoration:none; font-size:.88rem; line-height:1.3; position:relative}
+.stations li a .dot{width:21px; height:21px; border-radius:50%; background:var(--paper); border:3px solid var(--line); display:grid; place-items:center; font:600 .62rem/1 var(--mono); color:var(--muted)}
+.stations li a:hover{color:var(--ink)}
+.stations li a.active{color:var(--ink); font-weight:600}
+.stations li a.active .dot{border-color:var(--turmeric)}
+.stations li a.done .dot{background:var(--leaf); border-color:var(--leaf); color:var(--paper)}
+.stations li.zone{font:600 .68rem/1 var(--body); letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:14px 0 4px 32px}
+
+/* ---------- hero ---------- */
+.hero{padding-block:8px 34px; border-bottom:1px solid var(--line); margin-bottom:8px}
+.eyebrow{font:600 .74rem/1 var(--body); letter-spacing:.14em; text-transform:uppercase; color:var(--turmeric)}
+.hero h1{font-size:clamp(2.3rem, 6vw, 3.9rem); font-weight:800; letter-spacing:-.02em; margin:12px 0 14px}
+.hero h1 em{font-style:normal; color:var(--leaf)}
+.lede{font-size:1.12rem; max-width:62ch; color:var(--ink)}
+.facts{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-top:26px}
+.facts div{background:var(--surface); padding:12px 14px}
+.facts b{display:block; font-family:var(--display); font-size:1.35rem; font-variant-numeric:tabular-nums}
+.facts span{font-size:.8rem; color:var(--muted)}
+
+/* ---------- sections ---------- */
+section.stop{padding-top:56px; scroll-margin-top:8px}
+.stop-head{display:flex; gap:16px; align-items:flex-start; margin-bottom:16px}
+.num{flex:none; width:46px; height:46px; border-radius:50%; border:3px solid var(--leaf); display:grid; place-items:center; font:700 1rem/1 var(--mono); color:var(--leaf); background:var(--surface)}
+.stop-head .meta{font-size:.82rem; color:var(--muted); margin-top:6px; display:flex; flex-wrap:wrap; gap:6px 14px}
+.stop-head .meta span::before{content:"· "; color:var(--line)}
+.stop-head .meta span:first-child::before{content:""}
+.donebox{margin-left:auto; flex:none; display:flex; align-items:center; gap:6px; font-size:.8rem; color:var(--muted); cursor:pointer; user-select:none; padding:6px 10px; border:1px solid var(--line); border-radius:99px; background:var(--surface)}
+.donebox input{accent-color:var(--leaf); width:16px; height:16px; margin:0}
+.prose{max-width:72ch; display:flex; flex-direction:column; gap:14px}
+.prose > h3{margin-top:22px}
+ul.tight, ol.tight{margin:0; padding-left:1.3em; display:flex; flex-direction:column; gap:6px}
+ol.steps{list-style:none; counter-reset:s; margin:0; padding:0; display:flex; flex-direction:column; gap:18px}
+ol.steps > li{counter-increment:s; display:grid; grid-template-columns:32px minmax(0,1fr); gap:12px}
+ol.steps > li::before{content:counter(s); width:28px; height:28px; border-radius:7px; background:var(--leaf-soft); color:var(--leaf); font:600 .85rem/28px var(--mono); text-align:center}
+ol.steps > li > div{min-width:0; display:flex; flex-direction:column; gap:10px}
+
+/* ---------- code ---------- */
+.code{position:relative; background:var(--sunk); border:1px solid var(--line); border-radius:9px; min-width:0}
+.code .lab{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 8px 6px 14px; border-bottom:1px solid var(--line); font:500 .72rem/1.2 var(--mono); color:var(--muted); letter-spacing:.02em}
+.code pre{margin:0; padding:12px 14px; overflow-x:auto; font:400 .84rem/1.6 var(--mono); color:var(--ink); tab-size:2}
+.code pre .c{color:var(--muted)}
+.copy{font:500 .72rem/1 var(--body); border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:6px; padding:5px 9px; cursor:pointer}
+.copy:hover{border-color:var(--leaf)}
+.copy.ok{color:var(--leaf); border-color:var(--leaf)}
+
+/* ---------- callouts ---------- */
+.note{border-left:4px solid var(--leaf); background:var(--leaf-soft); padding:12px 16px; border-radius:0 8px 8px 0; display:flex; flex-direction:column; gap:6px}
+.note.warn{border-color:var(--turmeric); background:var(--turmeric-soft)}
+.note.stop{border-color:var(--chili); background:var(--chili-soft)}
+.note.info{border-color:var(--sky); background:var(--sky-soft)}
+.note b.t{font-family:var(--display); font-size:.95rem}
+.tag{display:inline-block; font:600 .68rem/1 var(--body); letter-spacing:.08em; text-transform:uppercase; padding:4px 7px; border-radius:5px; background:var(--turmeric-soft); color:var(--turmeric); border:1px solid var(--turmeric); vertical-align:2px}
+
+/* ---------- tables ---------- */
+.tbl{overflow-x:auto; border:1px solid var(--line); border-radius:9px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.9rem}
+th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+th{font:600 .74rem/1.3 var(--body); letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.n{font-variant-numeric:tabular-nums; white-space:nowrap}
+
+/* ---------- figures ---------- */
+figure{margin:0; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; min-width:0}
+figure .scroll{overflow-x:auto}
+figcaption{font-size:.84rem; color:var(--muted)}
+svg text{font-family:var(--body)}
+.s-box{fill:var(--surface); stroke:var(--line); stroke-width:1.5}
+.s-zone{fill:var(--sunk); stroke:var(--line); stroke-width:1.5}
+.s-aws{fill:none; stroke:var(--turmeric); stroke-width:1.5; stroke-dasharray:6 5}
+.s-leaf{fill:var(--leaf-soft); stroke:var(--leaf); stroke-width:1.5}
+.s-tur{fill:var(--turmeric-soft); stroke:var(--turmeric); stroke-width:1.5}
+.s-sky{fill:var(--sky-soft); stroke:var(--sky); stroke-width:1.5}
+.s-chili{fill:var(--chili-soft); stroke:var(--chili); stroke-width:1.5}
+.t-h{fill:var(--ink); font-weight:600; font-size:14px}
+.t-b{fill:var(--ink); font-size:12px}
+.t-m{fill:var(--muted); font-size:11px}
+.t-zone{fill:var(--muted); font-size:11px; font-weight:600; letter-spacing:.1em}
+.t-mono{fill:var(--muted); font-family:var(--mono); font-size:10.5px}
+.a{stroke:var(--muted); stroke-width:1.6; fill:none}
+.a-leaf{stroke:var(--leaf); stroke-width:2; fill:none}
+.a-tur{stroke:var(--turmeric); stroke-width:2; fill:none}
+.a-chili{stroke:var(--chili); stroke-width:2; fill:none}
+.t-al{fill:var(--muted); font-size:11px; font-style:italic}
+
+/* canary bars */
+.canary{display:grid; gap:8px}
+.crow{display:grid; grid-template-columns:150px minmax(0,1fr) 110px; gap:12px; align-items:center; font-size:.84rem}
+.crow .pods{display:flex; gap:4px}
+.crow .pods i{width:26px; height:18px; border-radius:4px; background:var(--sky-soft); border:1.5px solid var(--sky)}
+.crow .pods i.new{background:var(--leaf); border-color:var(--leaf)}
+.crow .w{font-family:var(--mono); color:var(--muted); font-size:.78rem}
+.crow.chk .pods{font-size:.8rem; color:var(--turmeric); font-weight:600}
+
+.grid2{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px}
+.card{border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:var(--surface); display:flex; flex-direction:column; gap:8px; min-width:0}
+.card h4{margin:0; font-family:var(--display); font-size:1rem}
+.card p, .card li{font-size:.9rem}
+
+details{border:1px solid var(--line); border-radius:9px; background:var(--surface)}
+details > summary{cursor:pointer; padding:10px 14px; font-weight:600; font-size:.92rem}
+details > div{padding:0 14px 14px; display:flex; flex-direction:column; gap:12px}
+
+.qlist{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px}
+.qlist button{text-align:left; font:400 .9rem/1.4 var(--body); color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer}
+.qlist button:hover{border-color:var(--leaf)}
+.qlist button small{display:block; color:var(--muted); font-size:.76rem; margin-top:3px}
+
+footer{margin-top:70px; padding-top:20px; border-top:1px solid var(--line); font-size:.84rem; color:var(--muted)}
+
+@media (max-width: 980px){
+  .shell{grid-template-columns:minmax(0,1fr); gap:10px}
+  .route{position:static; max-height:none; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:16px}
+  .stations{columns:2; column-gap:18px}
+  .stations::before{display:none}
+  .stations li{break-inside:avoid}
+  .stations li.zone{padding-left:0}
+}
+@media (max-width: 640px){
+  .facts{grid-template-columns:repeat(2, minmax(0,1fr))}
+  .grid2, .qlist{grid-template-columns:minmax(0,1fr)}
+  .stations{columns:1}
+  .stop-head{flex-wrap:wrap}
+  .donebox{margin-left:62px}
+  .crow{grid-template-columns:minmax(0,1fr); gap:4px}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+<nav class="route" aria-label="Guide sections">
+  <div class="brand">Telugu Pickles<small>Laptop → EKS → Dude on Nova</small></div>
+  <div class="progress"><span id="progText">0 of 16 stops done</span><div class="bar"><i id="progBar"></i></div></div>
+  <ol class="stations" id="stations">
+    <li class="zone">Orientation</li>
+    <li><a href="#map"><span class="dot">0</span>The map</a></li>
+    <li class="zone">On your laptop</li>
+    <li><a href="#tools"><span class="dot">1</span>Install the tools</a></li>
+    <li><a href="#local"><span class="dot">2</span>Run the shop locally</a></li>
+    <li><a href="#aws"><span class="dot">3</span>Prepare AWS + Bedrock</a></li>
+    <li><a href="#fork"><span class="dot">4</span>Fork and configure</a></li>
+    <li><a href="#bootstrap"><span class="dot">5</span>Bootstrap</a></li>
+    <li><a href="#github"><span class="dot">6</span>GitHub secret</a></li>
+    <li class="zone">Into the cloud</li>
+    <li><a href="#push"><span class="dot">7</span>Push: Terraform + CI</a></li>
+    <li><a href="#cluster"><span class="dot">8</span>Explore the cluster</a></li>
+    <li><a href="#shop"><span class="dot">9</span>Open the shop</a></li>
+    <li><a href="#observe"><span class="dot">10</span>Prometheus, Grafana, logs</a></li>
+    <li><a href="#rollouts"><span class="dot">11</span>Blue-green and canary</a></li>
+    <li class="zone">AIOps</li>
+    <li><a href="#dude"><span class="dot">12</span>Meet Dude</a></li>
+    <li><a href="#chat"><span class="dot">13</span>Talk to Dude</a></li>
+    <li><a href="#incident"><span class="dot">14</span>Break it, Dude explains</a></li>
+    <li class="zone">Wrap up</li>
+    <li><a href="#destroy"><span class="dot">15</span>Destroy everything</a></li>
+    <li><a href="#trouble"><span class="dot">?</span>Troubleshooting</a></li>
+    <li><a href="#cheats"><span class="dot">≡</span>Cheat sheet</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">DevOps + AIOps capstone · student guide</div>
+  <h1>From your laptop to <em>Dude</em>, an AI engineer running on EKS</h1>
+  <p class="lede">One route, start to finish. You run the Telugu Pickles shop on your own machine. Then Terraform and GitHub Actions build it on Amazon EKS, Argo CD deploys it, and Argo Rollouts releases it safely. Last, <b>Dude</b> watches it all: a team of Amazon Nova agents on Bedrock that explains what broke and why.</p>
+  <div class="facts">
+    <div><b>~2 h</b><span>first time, end to end</span></div>
+    <div><b>$0.35/h</b><span>while the cluster runs</span></div>
+    <div><b>&lt; 1¢</b><span>per question to Dude</span></div>
+    <div><b>1 secret</b><span>in GitHub, no AWS keys</span></div>
+  </div>
+</header>
+
+<!-- ============================================================ 0 MAP -->
+<section class="stop" id="map" data-stop="map">
+  <div class="stop-head"><div class="num">0</div><div><h2>The map</h2><div class="meta"><span>5 min read</span><span>read before you start</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="map"> Done</label></div>
+  <div class="prose">
+    <p>Telugu Pickles is an online store for Indian veg and non-veg pickles. It has six Node.js microservices, a React frontend and PostgreSQL. You never deploy it by hand. You change files in Git, and automation does the rest.</p>
+  </div>
+  <figure style="margin-top:18px">
+    <div class="scroll">
+    <svg viewBox="0 0 1000 480" width="1000" style="max-width:100%;height:auto;min-width:760px" role="img" aria-label="Architecture: laptop, GitHub, and AWS with EKS, ECR, CloudWatch, SNS, Lambda and Bedrock">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+        <marker id="arL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--leaf)"/></marker>
+        <marker id="arT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--turmeric)"/></marker>
+      </defs>
+      <!-- laptop -->
+      <rect class="s-zone" x="10" y="30" width="210" height="430" rx="12"/>
+      <text class="t-zone" x="26" y="54">YOUR LAPTOP</text>
+      <rect class="s-box" x="26" y="70" width="178" height="62" rx="8"/><text class="t-h" x="38" y="94">Docker Compose</text><text class="t-m" x="38" y="114">shop on localhost:3000</text>
+      <rect class="s-box" x="26" y="146" width="178" height="62" rx="8"/><text class="t-h" x="38" y="170">Terraform + AWS CLI</text><text class="t-m" x="38" y="190">bootstrap, optional apply</text>
+      <rect class="s-box" x="26" y="222" width="178" height="62" rx="8"/><text class="t-h" x="38" y="246">kubectl</text><text class="t-m" x="38" y="266">port-forward UIs</text>
+      <rect class="s-leaf" x="26" y="298" width="178" height="62" rx="8"/><text class="t-h" x="38" y="322">Streamlit chat</text><text class="t-m" x="38" y="342">ask Dude questions</text>
+      <rect class="s-box" x="26" y="374" width="178" height="62" rx="8"/><text class="t-h" x="38" y="398">Browser</text><text class="t-m" x="38" y="418">shop, Argo CD, Grafana</text>
+      <!-- github -->
+      <rect class="s-zone" x="260" y="30" width="210" height="430" rx="12"/>
+      <text class="t-zone" x="276" y="54">GITHUB (YOUR FORK)</text>
+      <rect class="s-box" x="276" y="70" width="178" height="80" rx="8"/><text class="t-h" x="288" y="94">Repository</text><text class="t-mono" x="288" y="114">projects/  gitops/</text><text class="t-mono" x="288" y="132">docs/  scripts/</text>
+      <rect class="s-box" x="276" y="164" width="178" height="196" rx="8"/><text class="t-h" x="288" y="188">GitHub Actions</text>
+      <text class="t-mono" x="288" y="212">security.yml</text><text class="t-m" x="288" y="228">Gitleaks + Trivy</text>
+      <text class="t-mono" x="288" y="254">infra.yml</text><text class="t-m" x="288" y="270">terraform plan/apply</text>
+      <text class="t-mono" x="288" y="296">ci.yml</text><text class="t-m" x="288" y="312">test, build, push images</text>
+      <text class="t-mono" x="288" y="338">release.yml</text><text class="t-m" x="288" y="352">promote / abort</text>
+      <rect class="s-tur" x="276" y="374" width="178" height="62" rx="8"/><text class="t-h" x="288" y="398">Secret AWS_ROLE_ARN</text><text class="t-m" x="288" y="418">OIDC login, no keys</text>
+      <!-- aws -->
+      <rect class="s-aws" x="510" y="10" width="480" height="460" rx="14"/>
+      <text class="t-zone" x="526" y="34" style="fill:var(--turmeric)">AWS · us-east-1</text>
+      <rect class="s-box" x="526" y="46" width="140" height="48" rx="8"/><text class="t-h" x="538" y="66">ECR</text><text class="t-m" x="538" y="84">7 image repos</text>
+      <rect class="s-box" x="678" y="46" width="140" height="48" rx="8"/><text class="t-h" x="690" y="66">S3 state</text><text class="t-m" x="690" y="84">terraform.tfstate</text>
+      <rect class="s-box" x="830" y="46" width="146" height="48" rx="8"/><text class="t-h" x="842" y="66">IAM OIDC role</text><text class="t-m" x="842" y="84">for GitHub</text>
+      <rect class="s-zone" x="526" y="108" width="300" height="226" rx="10"/>
+      <text class="t-zone" x="540" y="128">EKS telugu-pickles-eks · 2 nodes</text>
+      <rect class="s-leaf" x="540" y="140" width="134" height="88" rx="8"/><text class="t-h" x="550" y="162">telugu-pickles</text><text class="t-m" x="550" y="181">frontend, gateway,</text><text class="t-m" x="550" y="196">auth, catalog, cart,</text><text class="t-m" x="550" y="211">order, payment, postgres</text>
+      <rect class="s-box" x="680" y="140" width="134" height="88" rx="8"/><text class="t-h" x="690" y="162">argocd</text><text class="t-m" x="690" y="181">Argo CD (GitOps)</text><text class="t-m" x="690" y="196">Argo Rollouts</text><text class="t-m" x="690" y="211">+ dashboard</text>
+      <rect class="s-box" x="540" y="236" width="134" height="88" rx="8"/><text class="t-h" x="550" y="258">monitoring</text><text class="t-m" x="550" y="277">Prometheus</text><text class="t-m" x="550" y="292">Grafana</text><text class="t-m" x="550" y="307">alert rules</text>
+      <rect class="s-box" x="680" y="236" width="134" height="88" rx="8"/><text class="t-h" x="690" y="258">amazon-cloudwatch</text><text class="t-m" x="690" y="277">Fluent Bit</text><text class="t-m" x="690" y="292">ships pod logs</text>
+      <rect class="s-box" x="840" y="140" width="136" height="60" rx="8"/><text class="t-h" x="852" y="162">ALB</text><text class="t-m" x="852" y="182">:80 shop  :8080 preview</text>
+      <rect class="s-box" x="840" y="236" width="136" height="88" rx="8"/><text class="t-h" x="852" y="258">CloudWatch</text><text class="t-m" x="852" y="277">/eks/telugu-pickles/pods</text><text class="t-m" x="852" y="292">AppErrorCount metric</text><text class="t-m" x="852" y="307">alarm error-spike</text>
+      <text class="t-zone" x="526" y="362" style="fill:var(--leaf)">AIOPS</text>
+      <rect class="s-tur" x="526" y="372" width="130" height="80" rx="8"/><text class="t-h" x="538" y="396">SNS</text><text class="t-m" x="538" y="414">alarms topic</text><text class="t-m" x="538" y="430">reports topic</text>
+      <rect class="s-leaf" x="672" y="372" width="146" height="80" rx="8"/><text class="t-h" x="684" y="396">Lambda</text><text class="t-mono" x="684" y="414">telugu-pickles-kira</text><text class="t-m" x="684" y="432">"Dude" + 3 agents</text>
+      <rect class="s-sky" x="834" y="372" width="142" height="80" rx="8"/><text class="t-h" x="846" y="396">Amazon Bedrock</text><text class="t-m" x="846" y="414">Nova Pro (Dude)</text><text class="t-m" x="846" y="430">Nova Lite (agents)</text>
+      <!-- arrows -->
+      <path class="a-leaf" d="M204 110 H276" marker-end="url(#arL)"/><text class="t-al" x="214" y="102">git push</text>
+      <path class="a-tur" d="M454 250 H526" marker-end="url(#arT)"/><text class="t-al" x="462" y="242">apply</text>
+      <path class="a-tur" d="M454 300 C490 300 490 72 526 72" marker-end="url(#arT)"/><text class="t-al" x="458" y="160">push</text>
+      <path class="a" d="M680 184 C600 110 520 110 454 110" marker-end="url(#ar)"/><text class="t-al" x="560" y="104" style="display:none">polls</text>
+      <path class="a" d="M814 290 H840" marker-end="url(#ar)"/>
+      <path class="a" d="M840 170 H674" marker-end="url(#ar)" style="display:none"/>
+      <path class="a-tur" d="M908 324 C908 352 600 340 600 372" marker-end="url(#arT)"/>
+      <path class="a-leaf" d="M656 412 H672" marker-end="url(#arL)"/>
+      <path class="a-leaf" d="M818 412 H834" marker-end="url(#arL)"/>
+      <path class="a-leaf" d="M744 372 V334" marker-end="url(#arL)"/>
+      <path class="a-leaf" d="M204 330 C380 470 560 470 672 430" marker-end="url(#arL)"/><text class="t-al" x="330" y="456">lambda:Invoke</text>
+      <path class="a" d="M840 176 C600 30 300 470 204 404" marker-end="url(#ar)" style="opacity:.0"/>
+    </svg>
+    </div>
+    <figcaption>Green: the paths you start. Turmeric: automation. Argo CD inside EKS polls your Git repo every 60 seconds and deploys whatever <code>gitops/</code> says. When the error alarm fires, SNS wakes Dude's Lambda, which asks Bedrock to reason over logs, metrics and Kubernetes state.</figcaption>
+  </figure>
+
+  <div class="prose" style="margin-top:22px">
+    <h3>What lives where in the repo</h3>
+    <div class="tbl"><table>
+      <tr><th>Folder</th><th>What it holds</th><th>Who changes it</th></tr>
+      <tr><td><code>projects/telugu-pickles/</code></td><td>The app: 6 services, React frontend, <code>docker-compose.yml</code>, smoke test</td><td>You. Pushing here runs <b>App CI</b></td></tr>
+      <tr><td><code>projects/Infrastructure/</code></td><td>Terraform: VPC, EKS, ECR, Argo CD, Rollouts, monitoring, CloudWatch, AIOps</td><td>You. Pushing here runs <b>Infrastructure</b></td></tr>
+      <tr><td><code>projects/Infrastructure/bootstrap/</code></td><td>One-time: S3 state bucket and the GitHub OIDC role</td><td>You, once, from your laptop</td></tr>
+      <tr><td><code>projects/aiops-assistant/</code></td><td><code>lambda/</code>: Dude's code. <code>app.py</code>: the Streamlit chat</td><td>You. Pushing <code>lambda/</code> runs <b>Infrastructure</b></td></tr>
+      <tr><td><code>gitops/</code></td><td>All Kubernetes YAML. Argo CD deploys this folder</td><td>You and the CI bot (image tags)</td></tr>
+      <tr><td><code>.github/workflows/</code></td><td><code>security.yml</code>, <code>infra.yml</code>, <code>ci.yml</code>, <code>release.yml</code></td><td>Rarely</td></tr>
+      <tr><td><code>scripts/</code></td><td><code>helm-repos.sh</code>, <code>pre-destroy.sh</code></td><td>Never, just run them</td></tr>
+    </table></div>
+
+    <h3>The route at a glance</h3>
+    <div class="tbl"><table>
+      <tr><th>Stops</th><th>Where</th><th>Time</th><th>Cost</th></tr>
+      <tr><td>1–2 Tools and the local shop</td><td>Laptop</td><td class="n">30 min</td><td>Free</td></tr>
+      <tr><td>3–6 AWS, fork, bootstrap, secret</td><td>Laptop + GitHub</td><td class="n">20 min</td><td>Cents per month</td></tr>
+      <tr><td>7 Push: infrastructure and images</td><td>GitHub Actions</td><td class="n">30–40 min</td><td>Billing starts</td></tr>
+      <tr><td>8–11 Cluster, shop, monitoring, releases</td><td>EKS</td><td class="n">45 min</td><td>$0.35 / hour</td></tr>
+      <tr><td>12–14 Dude</td><td>Lambda + Bedrock</td><td class="n">30 min</td><td>Under 1¢ per question</td></tr>
+      <tr><td>15 Destroy</td><td>Laptop or GitHub</td><td class="n">15–20 min</td><td>Billing stops</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============================================================ 1 TOOLS -->
+<section class="stop" id="tools" data-stop="tools">
+  <div class="stop-head"><div class="num">1</div><div><h2>Install the tools</h2><div class="meta"><span>Laptop</span><span>one time</span><span>20–30 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="tools"> Done</label></div>
+  <div class="prose">
+    <p>You need eight tools. Install everything first, so later stops don't stall halfway.</p>
+    <div class="tbl"><table>
+      <tr><th>Tool</th><th>Used for</th><th>Check it</th><th>Get it</th></tr>
+      <tr><td>Git</td><td>Clone, commit, push. On Windows it also gives you <b>Git Bash</b></td><td><code>git --version</code></td><td><a href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com</a></td></tr>
+      <tr><td>Docker Desktop</td><td>Runs the shop locally (stop 2)</td><td><code>docker version</code></td><td><a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">docker.com</a></td></tr>
+      <tr><td>AWS CLI v2</td><td>Talk to AWS from the terminal</td><td><code>aws --version</code></td><td><a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" target="_blank" rel="noopener">AWS docs</a></td></tr>
+      <tr><td>Terraform ≥ 1.10</td><td>Bootstrap; optionally build the infra from the laptop</td><td><code>terraform version</code></td><td><a href="https://developer.hashicorp.com/terraform/install" target="_blank" rel="noopener">hashicorp.com</a></td></tr>
+      <tr><td>kubectl</td><td>Look inside the cluster, port-forward the UIs</td><td><code>kubectl version --client</code></td><td><a href="https://kubernetes.io/docs/tasks/tools/" target="_blank" rel="noopener">kubernetes.io</a></td></tr>
+      <tr><td>Helm 3</td><td>Only for a laptop <code>terraform apply</code></td><td><code>helm version</code></td><td><a href="https://helm.sh/docs/intro/install/" target="_blank" rel="noopener">helm.sh</a></td></tr>
+      <tr><td>Python 3.12</td><td>The Dude chat (Streamlit)</td><td><code>python --version</code></td><td><a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org</a></td></tr>
+      <tr><td>kubectl argo rollouts <span class="tag">optional</span></td><td>Watch blue-green and canary live</td><td><code>kubectl argo rollouts version</code></td><td><a href="https://argoproj.github.io/argo-rollouts/installation/#kubectl-plugin-installation" target="_blank" rel="noopener">argoproj.github.io</a></td></tr>
+    </table></div>
+
+    <div class="note warn"><b class="t">Windows students: use Git Bash</b>
+      <p>Run every command in this guide in <b>Git Bash</b> unless it says PowerShell. Don't use the MSYS2 "UCRT64" shell. It has its own Python, so <code>streamlit</code> and <code>pip</code> point to the wrong place and you get <code>streamlit: command not found</code>.</p>
+      <p>When you install Python on Windows, tick <b>"Add python.exe to PATH"</b> on the first installer screen.</p>
+    </div>
+
+    <h3>Install by operating system</h3>
+    <div class="grid2">
+      <div class="card"><h4>Windows 10/11</h4><ul class="tight">
+        <li>Git for Windows: accept the defaults.</li>
+        <li>Docker Desktop: keep <b>Use WSL 2</b> ticked, then restart. If it says WSL is incomplete, run <code>wsl --install</code> in an Administrator PowerShell.</li>
+        <li>AWS CLI: the MSI installer.</li>
+        <li>Terraform, kubectl, Helm: <code>winget install Hashicorp.Terraform Kubernetes.kubectl Helm.Helm</code></li>
+        <li>Python 3.12 from python.org, with PATH ticked.</li>
+      </ul></div>
+      <div class="card"><h4>macOS</h4><ul class="tight">
+        <li>Docker Desktop: choose Apple chip or Intel chip.</li>
+        <li><code>brew install awscli terraform kubectl helm python@3.12</code></li>
+        <li><code>brew install argoproj/tap/kubectl-argo-rollouts</code> (optional)</li>
+        <li>Git ships with the Xcode command line tools.</li>
+      </ul></div>
+    </div>
+
+    <div class="code"><div class="lab"><span>Git Bash / Terminal: check everything</span><button class="copy">Copy</button></div><pre>git --version
+docker version            <span class="c"># must show Client AND Server</span>
+docker compose version
+aws --version             <span class="c"># aws-cli/2.x</span>
+terraform version         <span class="c"># 1.10 or newer</span>
+kubectl version --client
+helm version
+python --version          <span class="c"># Python 3.12.x  (macOS: python3)</span></pre></div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 LOCAL -->
+<section class="stop" id="local" data-stop="local">
+  <div class="stop-head"><div class="num">2</div><div><h2>Run the shop on your laptop</h2><div class="meta"><span>Laptop</span><span>no AWS needed</span><span>15–20 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="local"> Done</label></div>
+  <div class="prose">
+    <p>Run the app locally first. When it works here, you know the code is fine. Anything that breaks later is a cloud problem, not an app problem.</p>
+    <figure>
+      <div class="scroll"><pre style="margin:0;font:400 .8rem/1.5 var(--mono);color:var(--ink)"> browser ── http://localhost:3000 ──► frontend (nginx + React)
+                                          │ /api/...
+                                          ▼
+                                    gateway :8080
+            ┌──────────────┬──────────────┼───────────────┬───────────────┐
+      auth-service   catalog-service  cart-service   order-service ──► payment-service
+            └──────────────┴──────────────┴──────┬────────┴───────────────┘
+                                          postgres (one database per service)
+     prometheus :9090  scrapes /metrics           grafana :3001  dashboards</pre></div>
+      <figcaption>10 containers, about 400 MB of RAM once they're running.</figcaption>
+    </figure>
+    <ol class="steps">
+      <li><div><p><b>Clone your fork</b> into a short path, not inside OneDrive. You create the fork in stop 4. For now you can clone the class repo.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>mkdir -p ~/code && cd ~/code
+git clone https://github.com/&lt;you&gt;/&lt;repo&gt;.git devops-ai-playbook
+cd devops-ai-playbook/projects/telugu-pickles</pre></div></div></li>
+      <li><div><p><b>Start everything.</b> Docker Desktop must say <i>Engine running</i>. The first build takes 5–15 minutes.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>docker compose up -d --build            <span class="c"># full: shop + Prometheus + Grafana</span>
+<span class="c"># 4 GB laptop?  docker compose up -d --build frontend</span>
+docker compose ps                       <span class="c"># wait until every tp-* shows (healthy)</span></pre></div></div></li>
+      <li><div><p><b>Open it.</b></p>
+        <div class="tbl"><table>
+          <tr><th>URL</th><th>What</th><th>Login</th></tr>
+          <tr><td><code>http://localhost:3000</code></td><td>The shop</td><td><code>demo@telugupickles.in</code> / <code>Pickle@123</code></td></tr>
+          <tr><td><code>http://localhost:8080/api/health</code></td><td>Health of every service (JSON)</td><td>—</td></tr>
+          <tr><td><code>http://localhost:9090</code></td><td>Prometheus</td><td>—</td></tr>
+          <tr><td><code>http://localhost:3001</code></td><td>Grafana</td><td><code>admin</code> / <code>admin</code></td></tr>
+        </table></div></div></li>
+      <li><div><p><b>Run the 25-check smoke test.</b> It browses, logs in, adds to the cart, orders, checks stock, then cancels.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>./scripts/smoke-test.sh          <span class="c"># expect: Result: 25 passed, 0 failed</span>
+<span class="c"># "Permission denied"?  bash scripts/smoke-test.sh</span></pre></div></div></li>
+      <li><div><p><b>Break it on purpose</b> to preview AIOps. Make half of all payments fail, place a few orders, then turn it off.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>PAYMENT_DECLINE_RATE=0.5 docker compose up -d payment-service
+docker compose logs -f order-service payment-service      <span class="c"># Ctrl+C to stop</span>
+docker compose up -d payment-service                       <span class="c"># back to normal</span></pre></div></div></li>
+      <li><div><p><b>Stop it</b> before you go to the cloud, to free RAM.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>docker compose down          <span class="c"># keeps data;  add -v for a clean reset</span></pre></div></div></li>
+    </ol>
+    <div class="note info"><b class="t">The chaos switches</b><p>The services read four fault settings: <code>PAYMENT_DECLINE_RATE</code>, <code>PAYMENT_LATENCY_MS</code>, <code>CHAOS_ERROR_RATE</code> and <code>CHAOS_LATENCY_MS</code>. In the cloud they live in <code>gitops/k8s/platform/config.yml</code>. Later, in stop 14, you'll use them to give Dude something to investigate.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 AWS -->
+<section class="stop" id="aws" data-stop="aws">
+  <div class="stop-head"><div class="num">3</div><div><h2>Prepare AWS and check Bedrock</h2><div class="meta"><span>Laptop + AWS console</span><span>10 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="aws"> Done</label></div>
+  <div class="prose">
+    <ol class="steps">
+      <li><div><p><b>Get an IAM user with administrator rights</b>, with an access key, from your instructor or your own account. In the console: <b>IAM → Users → Create user</b>, attach <code>AdministratorAccess</code>, then <b>Security credentials → Create access key → CLI</b>.</p></div></li>
+      <li><div><p><b>Log in from the CLI, with region <code>us-east-1</code>.</b> Everything in this project runs there, because it has the widest Bedrock model coverage.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>aws configure                     <span class="c"># key, secret, region: us-east-1, output: json</span>
+aws sts get-caller-identity       <span class="c"># copy the "Arn" — you need it in stop 4</span>
+aws configure get region          <span class="c"># must print us-east-1</span></pre></div></div></li>
+      <li><div><p><b>Check that Bedrock answers for Amazon Nova.</b> Nova works without any approval form. Each test costs a fraction of a cent.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>aws bedrock-runtime converse --region us-east-1 \
+  --model-id us.amazon.nova-pro-v1:0 \
+  --messages '[{"role":"user","content":[{"text":"Say hello in Telugu"}]}]' \
+  --inference-config maxTokens=50
+
+aws bedrock-runtime converse --region us-east-1 \
+  --model-id us.amazon.nova-lite-v1:0 \
+  --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
+  --inference-config maxTokens=20</pre></div>
+        <p>A JSON reply with <code>"output"</code> and <code>"usage"</code> means you're ready. <code>AccessDeniedException</code> means your user lacks Bedrock permissions, or the account has a block on Bedrock. Ask your instructor.</p></div></li>
+    </ol>
+    <div class="note warn"><b class="t">Region trap</b><p>If your CLI default region is something else, such as <code>ap-south-2</code>, commands like <code>aws lambda invoke</code> look in the wrong region and say the function doesn't exist. Either set the default to <code>us-east-1</code> or add <code>--region us-east-1</code> to every command, as this guide does.</p></div>
+    <details><summary>Why the model IDs start with <code>us.</code></summary><div>
+      <p><code>us.amazon.nova-pro-v1:0</code> is a <b>cross-region inference profile</b>. Bedrock can serve your call from us-east-1, us-east-2 or us-west-2, whichever has capacity. You get fewer throttling errors, and the price is the same. The model is still Amazon Nova Pro.</p>
+    </div></details>
+  </div>
+</section>
+
+<!-- ============================================================ 4 FORK -->
+<section class="stop" id="fork" data-stop="fork">
+  <div class="stop-head"><div class="num">4</div><div><h2>Fork the repo and edit the settings</h2><div class="meta"><span>GitHub + laptop</span><span>10 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="fork"> Done</label></div>
+  <div class="prose">
+    <ol class="steps">
+      <li><div><p>On GitHub click <b>Fork</b>. Keep the fork <b>public</b>, because Argo CD reads it without a password. Clone your fork, if you haven't already.</p></div></li>
+      <li><div><p><b>Find your repo's numeric IDs.</b> GitHub's login token names repos by number, and the AWS role trusts only those numbers.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>curl -s https://api.github.com/repos/&lt;you&gt;/&lt;repo&gt; | python -c "import sys,json;r=json.load(sys.stdin);print('owner id:',r['owner']['id'],' repo id:',r['id'])"
+aws iam list-open-id-connect-providers     <span class="c"># token.actions.githubusercontent.com listed? then use false below</span></pre></div></div></li>
+      <li><div><p><b>Edit <code>projects/Infrastructure/bootstrap/terraform.tfvars</code></b></p>
+        <div class="code"><div class="lab"><span>HCL</span><button class="copy">Copy</button></div><pre>github_repository           = "&lt;you&gt;/&lt;repo&gt;"   <span class="c"># exactly as on GitHub</span>
+github_owner_id             = "&lt;owner id&gt;"
+github_repository_id        = "&lt;repo id&gt;"
+create_github_oidc_provider = true             <span class="c"># false if the provider already exists</span>
+domain_name                 = ""</pre></div></div></li>
+      <li><div><p><b>Edit <code>projects/Infrastructure/terraform.tfvars</code></b>. These lines matter for you:</p>
+        <div class="code"><div class="lab"><span>HCL</span><button class="copy">Copy</button></div><pre>cluster_admin_arns = ["&lt;Arn from aws sts get-caller-identity&gt;"]   <span class="c"># lets YOUR kubectl in</span>
+gitops_repo_url    = "https://github.com/&lt;you&gt;/&lt;repo&gt;.git"        <span class="c"># what Argo CD deploys</span>
+gitops_revision    = "main"
+
+<span class="c"># ---- AIOps (Dude) ----</span>
+aiops_enabled          = true
+aiops_supervisor_model = "us.amazon.nova-pro-v1:0"    <span class="c"># Dude himself</span>
+aiops_specialist_model = "us.amazon.nova-lite-v1:0"   <span class="c"># logs / metrics / deployment agents</span>
+aiops_alert_email      = ""                           <span class="c"># optional: your email for incident reports</span></pre></div></div></li>
+      <li><div><p><b>Commit, but don't push yet.</b> GitHub can't log in to AWS until stops 5 and 6 are done.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>git add -A && git commit -m "Configure for my AWS account"</pre></div></div></li>
+    </ol>
+    <div class="note"><b class="t">Everything else is already set</b><p>The cluster is 2 × <code>m7i-flex.large</code> nodes on Kubernetes 1.35, in a VPC <code>10.1.0.0/16</code> with 3 public subnets. Logs are kept 7 days. You don't need to change any of this.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 5 BOOTSTRAP -->
+<section class="stop" id="bootstrap" data-stop="bootstrap">
+  <div class="stop-head"><div class="num">5</div><div><h2>Bootstrap: give GitHub a key to AWS</h2><div class="meta"><span>Laptop</span><span>one time</span><span>2 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="bootstrap"> Done</label></div>
+  <div class="prose">
+    <p>GitHub Actions can't create the things it needs in order to log in, so you create them once from your laptop. It's a chicken-and-egg problem with a one-minute fix.</p>
+    <div class="tbl"><table>
+      <tr><th>Created</th><th>Why</th></tr>
+      <tr><td>S3 bucket <code>telugu-pickles-tfstate-&lt;account-id&gt;</code></td><td>Terraform's memory (state). Shared by your laptop and GitHub, with locking</td></tr>
+      <tr><td>IAM OIDC provider for GitHub</td><td>Lets AWS trust GitHub's short-lived login tokens</td></tr>
+      <tr><td>IAM role <code>telugu-pickles-github-actions</code></td><td>Only workflows from <b>your repo</b> can use it. No AWS keys are stored in GitHub</td></tr>
+    </table></div>
+    <div class="code"><div class="lab"><span>Git Bash, from the repo root</span><button class="copy">Copy</button></div><pre>cd projects/Infrastructure/bootstrap
+terraform init
+terraform apply              <span class="c"># review the plan (about 7 to add), type yes</span>
+terraform output             <span class="c"># copy github_actions_role_arn</span>
+cd ../../..</pre></div>
+    <div class="note warn"><b class="t">Demo trade-off</b><p>The role has <code>AdministratorAccess</code>, because Terraform must create IAM roles, VPCs and EKS. In a real company you would narrow it. The role is safe here only because its trust policy accepts your repo's ID alone.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 GITHUB -->
+<section class="stop" id="github" data-stop="github">
+  <div class="stop-head"><div class="num">6</div><div><h2>Add the one GitHub secret</h2><div class="meta"><span>GitHub</span><span>3 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="github"> Done</label></div>
+  <div class="prose">
+    <ol class="steps">
+      <li><div><p>Fork → <b>Settings → Secrets and variables → Actions → New repository secret</b>. Set name <code>AWS_ROLE_ARN</code> and value = <code>github_actions_role_arn</code> from stop 5.</p></div></li>
+      <li><div><p><b>Settings → Actions → General → Workflow permissions</b> → <i>Read and write permissions</i>. The CI bot commits new image tags.</p></div></li>
+      <li><div><p><b>Settings → Environments → production</b> appears after the first run. Add yourself as a <i>required reviewer</i>, so promote, abort and destroy wait for your click.</p></div></li>
+    </ol>
+    <div class="note"><b class="t">Where the other passwords are</b><p>Nowhere in GitHub. Terraform generates the database, JWT and Grafana passwords, keeps them in the encrypted S3 state and puts them in Kubernetes Secrets. The CI bot's push token is GitHub's built-in <code>GITHUB_TOKEN</code>.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 7 PUSH -->
+<section class="stop" id="push" data-stop="push">
+  <div class="stop-head"><div class="num">7</div><div><h2>Push: Terraform builds AWS, CI builds the images</h2><div class="meta"><span>GitHub Actions</span><span>30–40 min (mostly waiting for EKS)</span><span>billing starts</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="push"> Done</label></div>
+  <div class="prose">
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>git push origin main</pre></div>
+    <p>Open the <b>Actions</b> tab. Two workflows start.</p>
+    <div class="grid2">
+      <div class="card"><h4>Infrastructure <code>infra.yml</code></h4><ol class="tight">
+        <li>Security scan (Gitleaks + Trivy)</li>
+        <li><code>terraform plan</code>, about <b>74 to add</b></li>
+        <li><code>terraform apply</code>:
+          <ul class="tight">
+            <li>VPC, EKS control plane (about 10 min), 2 nodes</li>
+            <li>7 ECR repos</li>
+            <li>Helm: Argo CD, <b>Argo Rollouts</b>, Prometheus + Grafana, metrics-server, Load Balancer Controller, Fluent Bit</li>
+            <li>Namespace + generated Secrets</li>
+            <li>CloudWatch log group, metric filter, alarm</li>
+            <li><b>AIOps</b>: Dude Lambda, IAM role, SNS, EKS access entry, read-only ClusterRole</li>
+            <li>The Argo CD Application pointing at <code>gitops/</code></li>
+          </ul></li>
+      </ol></div>
+      <div class="card"><h4>App CI <code>ci.yml</code></h4><ol class="tight">
+        <li>Security scan and unit tests, in parallel</li>
+        <li>Build 7 images</li>
+        <li>Trivy scans each image and fails on a fixable CRITICAL CVE</li>
+        <li>Push to ECR, tagged with the commit SHA</li>
+        <li>The bot commits the new tags to <code>gitops/kustomization.yml</code>, as <i>"deploy: telugu-pickles abc1234"</i></li>
+        <li>Argo CD sees that commit and deploys</li>
+      </ol></div>
+    </div>
+    <div class="note warn"><b class="t">First run: App CI finishes too early</b><p>App CI takes about 6 minutes, but EKS and ECR take about 30. On the first run its deploy job shows a warning and stops cleanly. When <b>Infrastructure</b> is green, open <b>Actions → App CI → Run workflow → main</b>. This time it pushes the images.</p></div>
+
+    <details><summary>Alternative: build the infrastructure from your laptop (what the instructor does before class)</summary><div>
+      <p>This gives the same result as the Infrastructure workflow and is useful when GitHub Actions minutes are short. Run it from the repo root.</p>
+      <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>./scripts/helm-repos.sh                         <span class="c"># once: adds the Helm chart repos</span>
+cd projects/Infrastructure
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+terraform init -backend-config="bucket=telugu-pickles-tfstate-$ACCOUNT"
+terraform plan                                  <span class="c"># about 74 to add</span>
+terraform apply                                 <span class="c"># yes; about 25–30 min</span>
+terraform output                                <span class="c"># cluster name, ECR URLs, aiops commands</span></pre></div>
+      <p>Then trigger <b>App CI → Run workflow</b> on GitHub, or push any change under <code>projects/telugu-pickles/</code>, to build and deploy the images.</p>
+    </div></details>
+
+    <h3>Which push runs what</h3>
+    <div class="tbl"><table>
+      <tr><th>You change…</th><th>Runs</th><th>Result</th></tr>
+      <tr><td><code>projects/telugu-pickles/**</code></td><td>App CI</td><td>New images → bot commit → Argo CD deploys</td></tr>
+      <tr><td><code>projects/Infrastructure/**</code></td><td>Infrastructure</td><td><code>terraform apply</code>. Recreates the cluster if it was destroyed!</td></tr>
+      <tr><td><code>projects/aiops-assistant/lambda/**</code></td><td>Infrastructure</td><td>Redeploys Dude's Lambda code</td></tr>
+      <tr><td><code>gitops/**</code></td><td>Nothing in Actions</td><td>Argo CD applies it within about 60 s</td></tr>
+      <tr><td><code>docs/**</code>, <code>app.py</code></td><td>Security scan only</td><td>—</td></tr>
+    </table></div>
+    <div class="note"><b class="t">Always pull before you push</b><p>The CI bot commits to <code>main</code> too. Run <code>git pull --rebase</code> before every push, or your push is rejected.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 8 CLUSTER -->
+<section class="stop" id="cluster" data-stop="cluster">
+  <div class="stop-head"><div class="num">8</div><div><h2>Explore the cluster</h2><div class="meta"><span>Laptop → EKS</span><span>15 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="cluster"> Done</label></div>
+  <div class="prose">
+    <div class="code"><div class="lab"><span>Git Bash: connect kubectl</span><button class="copy">Copy</button></div><pre>aws eks update-kubeconfig --name telugu-pickles-eks --region us-east-1
+kubectl get nodes                                  <span class="c"># 2 nodes, Ready</span>
+kubectl get ns                                     <span class="c"># see the table below</span>
+kubectl -n argocd get application telugu-pickles -w   <span class="c"># wait for Synced / Healthy, then Ctrl+C</span>
+kubectl -n telugu-pickles get pods                 <span class="c"># about 13 pods Running</span>
+kubectl -n telugu-pickles get rollouts,deploy,sts,svc,ingress,hpa</pre></div>
+    <div class="tbl"><table>
+      <tr><th>Namespace</th><th>Runs</th><th>Installed by</th></tr>
+      <tr><td><code>telugu-pickles</code></td><td>frontend (Rollout, 2), gateway (2), auth, catalog (Rollout, 4 via HPA), cart, order, payment, postgres-0</td><td>Argo CD from <code>gitops/</code></td></tr>
+      <tr><td><code>argocd</code></td><td>Argo CD server, repo-server, controller; Argo Rollouts controller + dashboard</td><td>Terraform (Helm)</td></tr>
+      <tr><td><code>monitoring</code></td><td>Prometheus, Grafana, Alertmanager, kube-state-metrics, node-exporter</td><td>Terraform (Helm)</td></tr>
+      <tr><td><code>amazon-cloudwatch</code></td><td>Fluent Bit DaemonSet → CloudWatch Logs</td><td>Terraform (Helm)</td></tr>
+      <tr><td><code>kube-system</code></td><td>AWS Load Balancer Controller, metrics-server, CoreDNS, VPC CNI</td><td>EKS + Terraform</td></tr>
+    </table></div>
+
+    <h3>Argo CD: the GitOps engine</h3>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre><span class="c"># password for user admin</span>
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+kubectl -n argocd port-forward svc/argocd-server 8081:80      <span class="c"># open http://localhost:8081</span></pre></div>
+    <p>Click <b>telugu-pickles</b> to see the whole tree: Rollouts and Deployments → ReplicaSets → Pods, the StatefulSet, Services and Ingresses. <b>App diff</b> shows Git compared with what's running.</p>
+    <div class="note info"><b class="t">Class demo: self-healing</b>
+      <p>Delete a Service by hand, then watch Argo CD put it back within about a minute, because Git is the source of truth:</p>
+      <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl -n telugu-pickles delete service cart-service
+kubectl -n telugu-pickles get svc cart-service -w</pre></div>
+      <p>Don't demo this with <code>kubectl scale --replicas=0</code>. Argo CD is told to <b>ignore replica counts</b> (<code>ignoreDifferences</code>), so the HPA can scale freely. A manual scale is not undone.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 9 SHOP -->
+<section class="stop" id="shop" data-stop="shop">
+  <div class="stop-head"><div class="num">9</div><div><h2>Open the shop on AWS</h2><div class="meta"><span>Browser</span><span>5 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="shop"> Done</label></div>
+  <div class="prose">
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl -n telugu-pickles get ingress
+ALB=$(kubectl -n telugu-pickles get ingress frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "Shop:     http://$ALB"
+echo "Preview:  http://$ALB:8080      (blue-green green side)"
+cd projects/telugu-pickles && ./scripts/smoke-test.sh "http://$ALB"    <span class="c"># 25 passed, 0 failed</span></pre></div>
+    <p>A brand-new load balancer needs <b>2–3 minutes</b> before it answers. Log in with <code>demo@telugupickles.in</code> / <code>Pickle@123</code>. The ALB name changes every time the cluster is recreated.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 10 OBSERVE -->
+<section class="stop" id="observe" data-stop="observe">
+  <div class="stop-head"><div class="num">10</div><div><h2>Prometheus, Grafana and CloudWatch</h2><div class="meta"><span>Laptop → EKS</span><span>20 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="observe"> Done</label></div>
+  <div class="prose">
+    <p>These are Dude's eyes too. Everything you look at here, his agents read through their tools.</p>
+    <p>Each port-forward keeps its terminal busy, so open one Git Bash window per UI:</p>
+    <div class="tbl"><table>
+      <tr><th>UI</th><th>Command</th><th>Open</th></tr>
+      <tr><td>Argo CD</td><td><code>kubectl -n argocd port-forward svc/argocd-server 8081:80</code></td><td><code>localhost:8081</code></td></tr>
+      <tr><td>Prometheus</td><td><code>kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090</code></td><td><code>localhost:9090</code></td></tr>
+      <tr><td>Grafana</td><td><code>kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3001:80</code></td><td><code>localhost:3001</code></td></tr>
+      <tr><td>Rollouts dashboard</td><td><code>kubectl -n argocd port-forward svc/argo-rollouts-dashboard 3100:3100</code></td><td><code>localhost:3100/rollouts/telugu-pickles</code></td></tr>
+    </table></div>
+    <div class="code"><div class="lab"><span>Git Bash: Grafana password (user admin)</span><button class="copy">Copy</button></div><pre>kubectl -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d; echo</pre></div>
+
+    <h3>Generate traffic first</h3>
+    <div class="code"><div class="lab"><span>Git Bash: leave it running in its own window</span><button class="copy">Copy</button></div><pre>while true; do curl -s -o /dev/null "http://$ALB/api/products"; curl -s -o /dev/null "http://$ALB/"; sleep 0.2; done</pre></div>
+
+    <h3>Prometheus queries to try (Graph tab)</h3>
+    <div class="code"><div class="lab"><span>PromQL</span><button class="copy">Copy</button></div><pre><span class="c"># requests per second, per service</span>
+sum by (job) (rate(http_requests_total{namespace="telugu-pickles"}[2m]))
+
+<span class="c"># 5xx error ratio, per service</span>
+sum by (job) (rate(http_requests_total{namespace="telugu-pickles",status_code=~"5.."}[5m]))
+  / sum by (job) (rate(http_requests_total{namespace="telugu-pickles"}[5m]))
+
+<span class="c"># p95 latency in seconds</span>
+histogram_quantile(0.95, sum by (le, job) (rate(http_request_duration_seconds_bucket{namespace="telugu-pickles"}[5m])))
+
+<span class="c"># business metrics</span>
+sum by (status) (increase(tp_orders_placed_total[30m]))
+sum by (result) (increase(tp_payments_total[30m]))</pre></div>
+    <p>Also check <b>Status → Targets</b>: the telugu-pickles targets must show <i>UP</i>. Check <b>Status → Rules</b> for the alerts <code>HighServerErrorRate</code>, <code>CheckoutPaymentFailures</code>, <code>SlowRequestsP95</code> and <code>PodRestartingOften</code>.</p>
+
+    <h3>Grafana</h3>
+    <p><b>Dashboards → Telugu Pickles</b>: request rate, error rate and p95 latency per service (the RED method), orders, revenue, payment results, pods, CPU and memory. The built-in <i>Kubernetes / Compute Resources</i> dashboards come with the stack.</p>
+
+    <h3>CloudWatch Logs and the alarm</h3>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>aws logs tail /eks/telugu-pickles/pods --region us-east-1 --since 10m --follow
+aws cloudwatch describe-alarms --region us-east-1 --alarm-names telugu-pickles-error-spike \
+  --query 'MetricAlarms[0].[StateValue,Threshold,EvaluationPeriods]'</pre></div>
+    <p>In the console, <b>CloudWatch → Logs Insights</b>, pick <code>/eks/telugu-pickles/pods</code>:</p>
+    <div class="code"><div class="lab"><span>Logs Insights</span><button class="copy">Copy</button></div><pre>fields @timestamp, data.service, data.level, data.msg, data.requestId
+| filter data.level = "ERROR"
+| sort @timestamp desc
+| limit 50</pre></div>
+    <div class="note"><b class="t">The chain that wakes Dude</b><p>Fluent Bit ships logs → a <b>metric filter</b> counts lines where <code>data.level = "ERROR"</code> into <code>TeluguPickles / AppErrorCount</code> → the alarm <code>telugu-pickles-error-spike</code> fires at <b>more than 5 errors in 5 minutes</b> → SNS topic <code>telugu-pickles-alarms</code> → Dude's Lambda.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 11 ROLLOUTS -->
+<section class="stop" id="rollouts" data-stop="rollouts">
+  <div class="stop-head"><div class="num">11</div><div><h2>Blue-green and canary releases</h2><div class="meta"><span>Argo Rollouts</span><span>30 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="rollouts"> Done</label></div>
+  <div class="prose">
+    <p>A plain rolling update lets every shopper hit a new version before anyone has checked it. <b>Argo Rollouts</b> adds a <code>Rollout</code> kind, a Deployment with a release strategy. Terraform installs it, Argo CD syncs the Rollout, and Argo Rollouts runs the strategy.</p>
+
+    <h3>Where it's configured</h3>
+    <div class="tbl"><table>
+      <tr><th>File</th><th>What's in it</th></tr>
+      <tr><td><code>projects/Infrastructure/modules/platform/main.tf</code></td><td>Helm release <code>argo-rollouts</code> (chart 2.43.9, dashboard on), in namespace <code>argocd</code>. Argo CD <code>ignoreDifferences</code> on <code>/spec/replicas</code></td></tr>
+      <tr><td><code>gitops/k8s/apps/frontend.yml</code></td><td>Rollout <b>blueGreen</b>: <code>activeService: frontend</code>, <code>previewService: frontend-preview</code>, <code>autoPromotionEnabled: false</code>, scale-down delay 120 s. Ingresses on ALB ports 80 and 8080</td></tr>
+      <tr><td><code>gitops/k8s/apps/catalog-service.yml</code></td><td>Rollout <b>canary</b>: 25% → pause → analysis → 50% → pause + analysis → 100%</td></tr>
+      <tr><td><code>gitops/k8s/apps/analysis.yml</code></td><td>AnalysisTemplates <code>http-health</code> (blue-green) and <code>canary-error-rate</code> (Prometheus, error ratio ≤ 5%)</td></tr>
+      <tr><td><code>gitops/k8s/apps/autoscaling.yml</code></td><td>The HPA targets the catalog Rollout, minimum 4 pods</td></tr>
+      <tr><td><code>.github/workflows/release.yml</code></td><td><b>Release control</b>: status, promote, full, abort, retry, undo, from the browser</td></tr>
+    </table></div>
+
+    <div class="grid2" style="margin-top:6px">
+      <figure>
+        <svg viewBox="0 0 420 230" width="100%" role="img" aria-label="Blue-green: port 80 to blue, port 8080 to green, promote switches">
+          <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+          <rect class="s-box" x="10" y="30" width="110" height="44" rx="8"/><text class="t-h" x="22" y="50">ALB :80</text><text class="t-m" x="22" y="66">shoppers</text>
+          <rect class="s-box" x="10" y="130" width="110" height="44" rx="8"/><text class="t-h" x="22" y="150">ALB :8080</text><text class="t-m" x="22" y="166">testers</text>
+          <rect class="s-sky" x="240" y="22" width="170" height="60" rx="8"/><text class="t-h" x="252" y="46">BLUE pods (old)</text><text class="t-mono" x="252" y="66">svc frontend</text>
+          <rect class="s-leaf" x="240" y="122" width="170" height="60" rx="8"/><text class="t-h" x="252" y="146">GREEN pods (new)</text><text class="t-mono" x="252" y="166">svc frontend-preview</text>
+          <path class="a" d="M120 52 H240" marker-end="url(#ar2)"/>
+          <path class="a" d="M120 152 H240" marker-end="url(#ar2)"/>
+          <path class="a-leaf" d="M150 60 C190 90 200 120 240 138" stroke-dasharray="5 4" marker-end="url(#ar2)"/>
+          <text class="t-al" x="140" y="108">promote →</text>
+          <text class="t-m" x="10" y="212">Green passes http-health 3×, then pauses for you.</text>
+        </svg>
+        <figcaption><b>frontend: blue-green.</b> On promote, the <code>frontend</code> Service switches to green in one step. Blue is deleted 120 s later.</figcaption>
+      </figure>
+      <figure>
+        <div class="canary" aria-label="Canary steps for catalog-service">
+          <div class="crow"><span>setWeight 25</span><span class="pods"><i class="new"></i><i></i><i></i><i></i></span><span class="w">1 new / 3 old</span></div>
+          <div class="crow chk"><span>pause + analysis</span><span class="pods">1 min, then 4 checks × 30 s</span><span class="w">≤ 5% 5xx</span></div>
+          <div class="crow"><span>setWeight 50</span><span class="pods"><i class="new"></i><i class="new"></i><i></i><i></i></span><span class="w">2 new / 2 old</span></div>
+          <div class="crow chk"><span>pause + analysis</span><span class="pods">about 3 min</span><span class="w">≤ 5% 5xx</span></div>
+          <div class="crow"><span>setWeight 100</span><span class="pods"><i class="new"></i><i class="new"></i><i class="new"></i><i class="new"></i></span><span class="w">done, ~7 min</span></div>
+        </div>
+        <figcaption><b>catalog-service: canary.</b> The weight is the share of pods; there's no traffic splitter. If a check fails twice, the Rollout aborts and all pods go back to the old version, with no human involved.</figcaption>
+      </figure>
+    </div>
+
+    <div class="note warn"><b class="t">The first deploy is never staged</b><p>A Rollout's first version has nothing to compare against, so it goes straight in. Blue-green and canary start from the <b>second</b> image.</p></div>
+
+    <h3>Test blue-green</h3>
+    <ol class="steps">
+      <li><div><p>Change something visible, for example the hero title in <code>projects/telugu-pickles/frontend/src/pages/Home.jsx</code>.</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>git pull --rebase
+git commit -am "New hero text" && git push</pre></div></div></li>
+      <li><div><p>Wait for App CI (about 6 min) and the bot commit. Within about a minute, <code>http://$ALB</code> shows the <b>old</b> page and <code>http://$ALB:8080</code> shows the <b>new</b> one. Argo CD shows <i>Suspended</i>, which is normal.</p></div></li>
+      <li><div><p>Check: <b>Actions → Release control → frontend → status</b> shows <i>Paused, BlueGreenPause</i>. Or:</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl argo rollouts -n telugu-pickles get rollout frontend --watch</pre></div></div></li>
+      <li><div><p><b>Promote</b>: Release control → frontend → <code>promote</code>, then approve <i>production</i>. Or run <code>kubectl argo rollouts -n telugu-pickles promote frontend</code>. Reload port 80: the new page is live. To reject green instead, run <code>abort</code>.</p></div></li>
+    </ol>
+
+    <h3>Test a canary that passes</h3>
+    <p>The same push gave catalog-service a new image. Keep the traffic loop from stop 10 running, so the analysis has data, and watch 1 → 2 → 4 new pods:</p>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl argo rollouts -n telugu-pickles get rollout catalog-service --watch
+kubectl -n telugu-pickles get analysisrun</pre></div>
+
+    <h3>Test a canary that fails and rolls back by itself</h3>
+    <p>This is the incident Dude will explain in stop 14. Add a chaos variable to the catalog container's <code>env:</code> in <code>gitops/k8s/apps/catalog-service.yml</code>:</p>
+    <div class="code"><div class="lab"><span>YAML (inside the container env list)</span><button class="copy">Copy</button></div><pre>            - name: CHAOS_ERROR_RATE
+              value: "0.5"        <span class="c"># new pods fail 50% of requests</span></pre></div>
+    <p>Commit and push. It's a Git-only change, so no CI build runs. After the 1-minute pause the analysis measures about 50% errors on the canary pod. The Rollout becomes <b>Degraded</b> (<i>RolloutAborted: Metric "canary-5xx-ratio" assessed Failed</i>), and traffic returns to the old pods. To clean up, remove the two lines, commit and push.</p>
+
+    <h3>Rollouts commands</h3>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl argo rollouts -n telugu-pickles list rollouts
+kubectl argo rollouts -n telugu-pickles promote frontend          <span class="c"># next step / switch to green</span>
+kubectl argo rollouts -n telugu-pickles promote frontend --full   <span class="c"># skip all remaining steps</span>
+kubectl argo rollouts -n telugu-pickles abort catalog-service
+kubectl argo rollouts -n telugu-pickles retry rollout catalog-service
+kubectl -n telugu-pickles describe analysisrun &lt;name&gt;</pre></div>
+    <div class="note info"><b class="t">Rollouts dashboard looks empty?</b><p>The dashboard opens on the <code>argocd</code> namespace, which has no Rollouts. Go to <code>http://localhost:3100/rollouts/telugu-pickles</code>, or pick <i>telugu-pickles</i> in the namespace box at the top.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 12 DUDE -->
+<section class="stop" id="dude" data-stop="dude">
+  <div class="stop-head"><div class="num">12</div><div><h2>Meet Dude: AIOps on Bedrock with Nova</h2><div class="meta"><span>Lambda + Bedrock</span><span>15 min read</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="dude"> Done</label></div>
+  <div class="prose">
+    <p><b>Dude</b> is an AI site-reliability engineer. When you ask a question, or when the error alarm fires, he sends three <b>specialist agents</b> to collect evidence. Then he writes one report: summary, impact, root cause, evidence, recommended actions and prevention. He is <b>read-only</b>: he recommends and never changes anything.</p>
+  </div>
+  <figure style="margin-top:16px">
+    <div class="scroll">
+    <svg viewBox="0 0 940 430" width="940" style="max-width:100%;height:auto;min-width:720px" role="img" aria-label="Dude supervisor delegating to logs, metrics and deployment agents, which read CloudWatch, Prometheus and Kubernetes">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+      <rect class="s-box" x="60" y="14" width="230" height="52" rx="8"/><text class="t-h" x="74" y="36">Streamlit chat (laptop)</text><text class="t-m" x="74" y="54">you type a question</text>
+      <rect class="s-tur" x="650" y="14" width="250" height="52" rx="8"/><text class="t-h" x="664" y="36">Alarm → SNS telugu-pickles-alarms</text><text class="t-m" x="664" y="54">&gt; 5 ERROR lines in 5 min</text>
+      <rect class="s-leaf" x="300" y="96" width="340" height="78" rx="10"/>
+      <text class="t-h" x="318" y="120" style="font-size:16px">Dude: supervisor</text>
+      <text class="t-m" x="318" y="140">Lambda telugu-pickles-kira · Amazon Nova Pro</text>
+      <text class="t-mono" x="318" y="160">tools: ask_logs_agent · ask_metrics_agent · ask_deployment_agent</text>
+      <path class="a" d="M175 66 C175 90 250 120 300 128" marker-end="url(#ar3)"/>
+      <path class="a" d="M775 66 C775 90 690 120 640 128" marker-end="url(#ar3)"/>
+      <text class="t-al" x="400" y="194">run in parallel</text>
+      <path class="a" d="M400 174 L160 222" marker-end="url(#ar3)"/>
+      <path class="a" d="M470 174 L470 222" marker-end="url(#ar3)"/>
+      <path class="a" d="M540 174 L780 222" marker-end="url(#ar3)"/>
+      <rect class="s-box" x="20" y="222" width="280" height="96" rx="8"/><text class="t-h" x="34" y="246">Logs agent · Nova Lite</text><text class="t-mono" x="34" y="268">error_summary</text><text class="t-mono" x="34" y="286">search_logs</text>
+      <rect class="s-box" x="330" y="222" width="280" height="96" rx="8"/><text class="t-h" x="344" y="246">Metrics agent · Nova Lite</text><text class="t-mono" x="344" y="268">service_health · pod_errors</text><text class="t-mono" x="344" y="286">business_metrics · pod_resources</text><text class="t-mono" x="344" y="304">firing_alerts</text>
+      <rect class="s-box" x="640" y="222" width="280" height="96" rx="8"/><text class="t-h" x="654" y="246">Deployment agent · Nova Lite</text><text class="t-mono" x="654" y="268">rollout_status · analysis_runs</text><text class="t-mono" x="654" y="286">argocd_status · pod_status</text><text class="t-mono" x="654" y="304">recent_events</text>
+      <path class="a" d="M160 318 V356" marker-end="url(#ar3)"/>
+      <path class="a" d="M470 318 V356" marker-end="url(#ar3)"/>
+      <path class="a" d="M780 318 V356" marker-end="url(#ar3)"/>
+      <rect class="s-sky" x="20" y="356" width="280" height="56" rx="8"/><text class="t-h" x="34" y="378">CloudWatch Logs Insights</text><text class="t-mono" x="34" y="398">/eks/telugu-pickles/pods</text>
+      <rect class="s-sky" x="330" y="356" width="280" height="56" rx="8"/><text class="t-h" x="344" y="378">Prometheus</text><text class="t-m" x="344" y="398">via the EKS API proxy (not public)</text>
+      <rect class="s-sky" x="640" y="356" width="280" height="56" rx="8"/><text class="t-h" x="654" y="378">Kubernetes API</text><text class="t-m" x="654" y="398">ClusterRole aiops-reader (get/list)</text>
+    </svg>
+    </div>
+    <figcaption>Dude's tools are other agents, so asking one starts a whole agent with its own tools. The report goes back to the chat or, for an alarm, to the SNS topic <code>telugu-pickles-aiops-reports</code> (email, if you set one) and the Lambda log.</figcaption>
+  </figure>
+
+  <div class="prose" style="margin-top:22px">
+    <h3>What Amazon Bedrock is, in one paragraph</h3>
+    <p>Bedrock is AWS's service for calling foundation models, such as Amazon Nova, Anthropic Claude and Meta Llama, through one API. You don't run any servers or GPUs, and you don't create a "model resource". You call the model ID and pay per token. That's why Terraform creates <b>no Bedrock resources</b> for Dude. It only gives the Lambda's IAM role permission to invoke the two model IDs.</p>
+
+    <h3>How one agent works: the Converse tool-use loop</h3>
+    <p>Every agent, Dude included, runs the same ~40-line loop in <code>projects/aiops-assistant/lambda/kira.py</code> (<code>run_agent</code>):</p>
+    <ol class="tight">
+      <li>Send the conversation and the list of tools to the model with <code>bedrock.converse()</code>.</li>
+      <li>If the model replies <code>stopReason: "tool_use"</code>, run the requested tools in parallel and append their results.</li>
+      <li>Repeat, up to 6 turns, until the model answers in plain text.</li>
+    </ol>
+    <div class="code"><div class="lab"><span>Python: the heart of kira.py</span><button class="copy">Copy</button></div><pre>bedrock = boto3.client("bedrock-runtime", region_name=REGION,
+                       config=Config(retries={"max_attempts": 5, "mode": "adaptive"}, read_timeout=120))
+
+resp = bedrock.converse(
+    modelId=model,                         <span class="c"># us.amazon.nova-pro-v1:0 for Dude, nova-lite for agents</span>
+    system=[{"text": system}],             <span class="c"># the agent's instructions</span>
+    messages=messages,                     <span class="c"># conversation so far, including tool results</span>
+    toolConfig={"tools": tools},           <span class="c"># JSON schemas of the tools it may call</span>
+    inferenceConfig={"maxTokens": max_tokens},   <span class="c"># always explicit: 3000 Dude, 1500 agents</span>
+)
+usage = resp["usage"]                      <span class="c"># inputTokens / outputTokens: what you pay for</span></pre></div>
+
+    <h3>Everything Terraform creates for Dude (<code>modules/aiops</code>)</h3>
+    <div class="tbl"><table>
+      <tr><th>Resource</th><th>Name</th><th>Purpose</th></tr>
+      <tr><td>Lambda function</td><td><code>telugu-pickles-kira</code></td><td>Python 3.12, 512 MB, 300 s timeout, handler <code>kira.handler</code></td></tr>
+      <tr><td>Environment variables</td><td><code>SUPERVISOR_MODEL</code>, <code>SPECIALIST_MODEL</code>, <code>LOG_GROUP</code>, <code>CLUSTER_*</code>, <code>REPORT_TOPIC_ARN</code></td><td>Swap models without code changes</td></tr>
+      <tr><td>IAM role + policy</td><td><code>telugu-pickles-aiops-kira</code></td><td>Logs Insights on the app log group; <code>bedrock:InvokeModel</code> on the 2 configured models only; <code>sns:Publish</code> to reports</td></tr>
+      <tr><td>Log group</td><td><code>/aws/lambda/telugu-pickles-kira</code></td><td>Dude's own logs and alarm reports</td></tr>
+      <tr><td>SNS subscription + Lambda permission</td><td>alarms topic → Lambda</td><td>The alarm wakes Dude automatically</td></tr>
+      <tr><td>SNS topic (+ optional email)</td><td><code>telugu-pickles-aiops-reports</code></td><td>Where incident reports go</td></tr>
+      <tr><td>EKS access entry</td><td>role → group <code>aiops-readers</code></td><td>Lambda logs in to Kubernetes with its IAM role. No kubeconfig, no keys</td></tr>
+      <tr><td>ClusterRole + binding</td><td><code>aiops-reader</code></td><td>get/list on pods, events, services, workloads, Rollouts, AnalysisRuns, Applications, plus the Prometheus proxy. <b>No secrets, no exec, no writes</b></td></tr>
+    </table></div>
+
+    <h3>Why not "Bedrock Agents"?</h3>
+    <p>Classic Bedrock Agents is in maintenance mode and closed to new accounts. <code>CreateAgent</code> returns <i>AccessDenied</i>. The Converse loop does the same job in code you can read, which is better for learning. AWS's managed next step for hosted agents is <b>Bedrock AgentCore</b>.</p>
+
+    <h3>Models and switching to Claude</h3>
+    <div class="tbl"><table>
+      <tr><th>Setting in <code>terraform.tfvars</code></th><th>Default (no approval)</th><th>After the Anthropic form</th></tr>
+      <tr><td><code>aiops_supervisor_model</code></td><td><code>us.amazon.nova-pro-v1:0</code></td><td><code>us.anthropic.claude-sonnet-4-6</code></td></tr>
+      <tr><td><code>aiops_specialist_model</code></td><td><code>us.amazon.nova-lite-v1:0</code></td><td><code>us.anthropic.claude-haiku-4-5-20251001-v1:0</code></td></tr>
+    </table></div>
+    <p>Claude writes richer reports, but each account must first submit Anthropic's one-time "use case details" form: <b>Bedrock console → Model catalog → any Claude model</b>. Change the two lines, push, and the Infrastructure workflow updates the Lambda.</p>
+    <div class="note"><b class="t">"Dude" vs "kira"</b><p>Dude is the display name. The AWS resources keep the original technical name <code>kira</code>, as in <code>telugu-pickles-kira</code>, so renaming never replaces infrastructure.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 13 CHAT -->
+<section class="stop" id="chat" data-stop="chat">
+  <div class="stop-head"><div class="num">13</div><div><h2>Talk to Dude</h2><div class="meta"><span>Laptop + AWS console</span><span>20 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="chat"> Done</label></div>
+  <div class="prose">
+    <h3>Option A: one question from the CLI</h3>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>aws lambda invoke --region us-east-1 --function-name telugu-pickles-kira \
+  --cli-read-timeout 300 --cli-binary-format raw-in-base64-out \
+  --payload '{"question":"Is everything healthy?"}' out.json
+python -c "import json;r=json.load(open('out.json'));print(r['answer']);print('steps:',len(r.get('steps',[])),' seconds:',r.get('seconds'),' tokens:',r.get('tokens_in'),'/',r.get('tokens_out'))"</pre></div>
+
+    <h3>Option B: the Streamlit chat (best for class)</h3>
+    <div class="code"><div class="lab"><span>Git Bash, from the repo root</span><button class="copy">Copy</button></div><pre>cd projects/aiops-assistant
+python -m pip install -r requirements.txt       <span class="c"># streamlit, boto3, python-dotenv</span>
+echo "AWS_REGION=us-east-1" &gt; .env
+python -m streamlit run app.py                  <span class="c"># opens http://localhost:8501</span></pre></div>
+    <div class="note warn"><b class="t">"streamlit: command not found"?</b>
+      <p>Always start it with <code>python -m streamlit</code>. That works even when pip's Scripts folder isn't on your PATH. If <code>python</code> itself points to the wrong install (MSYS2 UCRT64 shell), call the Windows Python directly:</p>
+      <div class="code"><div class="lab"><span>Git Bash / UCRT64</span><button class="copy">Copy</button></div><pre>"/c/Program Files/Python312/python.exe" -m streamlit run app.py
+<span class="c"># PowerShell:  &amp; "C:\Program Files\Python312\python.exe" -m streamlit run app.py</span></pre></div>
+      <p>If port 8501 is busy, Streamlit uses 8502. Read the URL it prints.</p>
+    </div>
+    <p>The chat uses your AWS CLI login, so there are no keys in files. Open the expander <b>"How Dude investigated"</b> to see every agent and tool call, with time and tokens. That's the multi-agent teamwork made visible.</p>
+
+    <h3>Questions to ask Dude</h3>
+    <p>Click a question to copy it.</p>
+    <div class="qlist" id="qlist">
+      <button>Is everything healthy?<small>All three agents, quick status</small></button>
+      <button>Which service has the highest error rate right now, and why?<small>Metrics + logs</small></button>
+      <button>Are payments failing? Since when, and how many orders were affected?<small>business_metrics + logs</small></button>
+      <button>What's the status of the frontend blue-green release? Is it waiting for promotion?<small>Deployment agent</small></button>
+      <button>Why did the last catalog-service canary roll back?<small>AnalysisRuns + pod errors</small></button>
+      <button>Explain the incident from the last 15 minutes and what I should do.<small>Full incident report</small></button>
+      <button>Is Argo CD in sync with Git? Any drift?<small>argocd_status</small></button>
+      <button>Which pods restarted in the last hour, and are any short on memory?<small>pod_resources + events</small></button>
+      <button>Is p95 latency normal for every service?<small>service_health</small></button>
+      <button>Are any Prometheus alerts firing?<small>firing_alerts</small></button>
+    </div>
+    <div class="note info"><b class="t">If Dude says data is missing</b><p>The metrics tools need recent traffic. Start the curl loop from stop 10, wait 2 minutes, and ask again.</p></div>
+
+    <h3>Show the Lambda and the Bedrock calls in AWS</h3>
+    <div class="tbl"><table>
+      <tr><th>What to show</th><th>Where in the console</th></tr>
+      <tr><td>The function, its code and settings</td><td><b>Lambda → Functions → telugu-pickles-kira</b>: Code tab (kira.py, logs_tools.py, metrics_tools.py, deploy_tools.py, k8s.py), Configuration → Environment variables (the two model IDs), Configuration → Triggers (SNS)</td></tr>
+      <tr><td>Each run</td><td>Lambda → <b>Monitor → View CloudWatch logs</b>, or <code>aws logs tail /aws/lambda/telugu-pickles-kira --region us-east-1 --since 15m</code></td></tr>
+      <tr><td>Every model call</td><td><b>CloudTrail → Event history</b>, filter <i>Event source</i> = <code>bedrock.amazonaws.com</code>. Each <code>Converse</code> event shows the user <code>telugu-pickles-kira</code></td></tr>
+      <tr><td>Calls and tokens per model</td><td><b>CloudWatch → Metrics → AWS/Bedrock → By ModelId</b>: Invocations, InputTokenCount, OutputTokenCount, InvocationLatency</td></tr>
+      <tr><td>The models themselves</td><td><b>Amazon Bedrock → Model catalog</b>, Amazon Nova Pro / Nova Lite. Try them in the <b>Playground</b></td></tr>
+      <tr><td>What it costs</td><td><b>Billing → Bills → Amazon Bedrock</b>, or Cost Explorer filtered on service Bedrock (shows up within about a day)</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============================================================ 14 INCIDENT -->
+<section class="stop" id="incident" data-stop="incident">
+  <div class="stop-head"><div class="num">14</div><div><h2>Break it on purpose and let Dude explain</h2><div class="meta"><span>Full AIOps drill</span><span>20–25 min</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="incident"> Done</label></div>
+  <div class="prose">
+    <p>Pick one of the three drills. Run the traffic loop from stop 10 during all of them.</p>
+
+    <h3>Drill 1: test the alarm path without breaking anything</h3>
+    <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>aws cloudwatch set-alarm-state --region us-east-1 --alarm-name telugu-pickles-error-spike \
+  --state-value ALARM --state-reason "Manual test of the AIOps pipeline"
+aws logs tail /aws/lambda/telugu-pickles-kira --region us-east-1 --follow     <span class="c"># report appears in ~1 min</span></pre></div>
+
+    <h3>Drill 2: payments start failing</h3>
+    <ol class="steps">
+      <li><div><p>In <code>gitops/k8s/platform/config.yml</code> set <code>PAYMENT_DECLINE_RATE: "0.8"</code>, then commit and push.</p></div></li>
+      <li><div><p>Argo CD updates the ConfigMap. Restart the payment pods so they read the new value:</p>
+        <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>kubectl -n telugu-pickles rollout restart deploy payment-service
+cd projects/telugu-pickles && for i in 1 2 3 4; do ./scripts/smoke-test.sh "http://$ALB"; done</pre></div></div></li>
+      <li><div><p>Watch the evidence pile up: Grafana's payment panel, the <code>CheckoutPaymentFailures</code> alert, ERROR lines in CloudWatch, and the alarm going to <i>ALARM</i>.</p></div></li>
+      <li><div><p>Ask Dude: <i>"Are payments failing? Since when, and how many orders were affected?"</i> Also check the automatic report in the Lambda log.</p></div></li>
+      <li><div><p>Set it back to <code>"0"</code>, push, and restart payment-service again.</p></div></li>
+    </ol>
+
+    <h3>Drill 3: a bad canary, an automatic rollback, an automatic report</h3>
+    <ol class="steps">
+      <li><div><p>Add <code>CHAOS_ERROR_RATE: "0.5"</code> to catalog-service, as in stop 11, then push.</p></div></li>
+      <li><div><p>Argo Rollouts sees more than 5% errors on the canary pod and <b>aborts</b>. Traffic goes back to the stable pods.</p></div></li>
+      <li><div><p>The canary's ERROR logs push the CloudWatch alarm over 5 errors in 5 minutes. SNS invokes Dude.</p></div></li>
+      <li><div><p>About a minute later the report is in <code>/aws/lambda/telugu-pickles-kira</code>, and in your email if you set one. It should name the canary, the failed analysis and the 503 <i>chaos</i> log lines, and recommend a <code>git revert</code>.</p></div></li>
+      <li><div><p>Ask in the chat: <i>"Why did the last catalog-service canary roll back?"</i> Then remove the env lines and push.</p></div></li>
+    </ol>
+    <div class="note"><b class="t">What to point out to the class</b><p>No human looked at a dashboard. Argo Rollouts protected the shoppers with a metric check. The alarm woke the AI, the AI collected evidence from logs, metrics and Kubernetes, and a human gets a root-cause report to act on. That's AIOps.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 15 DESTROY -->
+<section class="stop" id="destroy" data-stop="destroy">
+  <div class="stop-head"><div class="num">15</div><div><h2>Destroy everything and stop the bill</h2><div class="meta"><span>Laptop or GitHub</span><span>15–20 min</span><span>do it every day</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="destroy"> Done</label></div>
+  <div class="prose">
+    <div class="note stop"><b class="t">The cluster costs about $8.40 a day</b><p>It costs that whether anyone uses it or not. Destroy it when class ends. Rebuilding takes about 30 minutes.</p></div>
+    <h3>Option A: from GitHub</h3>
+    <p><b>Actions → Infrastructure → Run workflow</b>, choose <code>destroy</code>, type <code>destroy</code> in the confirm box, then approve <i>production</i>.</p>
+    <h3>Option B: from your laptop</h3>
+    <div class="code"><div class="lab"><span>Git Bash, from the repo root</span><button class="copy">Copy</button></div><pre>cd projects/Infrastructure
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+terraform init -backend-config="bucket=telugu-pickles-tfstate-$ACCOUNT"
+../../scripts/pre-destroy.sh telugu-pickles-eks us-east-1    <span class="c"># removes the ALB + database volume first</span>
+terraform destroy                                            <span class="c"># yes; about 15 min</span></pre></div>
+    <p><code>pre-destroy.sh</code> matters because Kubernetes controllers create the load balancer and the database disk, not Terraform. If they're left behind, they block the VPC deletion and keep costing money.</p>
+    <div class="note warn"><b class="t">If destroy hangs or fails the first time</b>
+      <p>Common causes: namespace deletion times out because pods are stuck <i>Terminating</i>, or <i>DependencyViolation</i> on the internet gateway. Force-delete the stuck pods and run destroy again:</p>
+      <div class="code"><div class="lab"><span>Git Bash</span><button class="copy">Copy</button></div><pre>for ns in argocd monitoring amazon-cloudwatch telugu-pickles; do
+  kubectl delete pods --all -n $ns --force --grace-period=0
+done
+terraform destroy</pre></div>
+      <p>The gateway error clears once the nodes are gone.</p>
+    </div>
+    <div class="code"><div class="lab"><span>Git Bash: prove it's gone</span><button class="copy">Copy</button></div><pre>aws eks list-clusters --region us-east-1                          <span class="c"># []</span>
+aws ec2 describe-instances --region us-east-1 --filters Name=instance-state-name,Values=running \
+  --query 'Reservations[].Instances[].InstanceId'                  <span class="c"># []</span>
+aws elbv2 describe-load-balancers --region us-east-1 --query 'LoadBalancers[].LoadBalancerName'   <span class="c"># []</span>
+terraform state list | wc -l                                       <span class="c"># 0</span></pre></div>
+    <p><b>What stays</b> (almost free): the bootstrap S3 bucket, the GitHub OIDC role and the <code>AWS_ROLE_ARN</code> secret. Rebuild later by re-running the Infrastructure workflow or a laptop <code>terraform apply</code>, then App CI.</p>
+  </div>
+</section>
+
+<!-- ============================================================ TROUBLE -->
+<section class="stop" id="trouble" data-stop="trouble">
+  <div class="stop-head"><div class="num">?</div><div><h2>Troubleshooting</h2><div class="meta"><span>Symptom → cause → fix</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="trouble"> Read</label></div>
+  <div class="prose" style="max-width:none">
+    <div class="tbl"><table>
+      <tr><th>Symptom</th><th>Cause and fix</th></tr>
+      <tr><td><code>Cannot connect to the Docker daemon</code></td><td>Docker Desktop isn't running. Start it and wait for <i>Engine running</i>.</td></tr>
+      <tr><td><code>port is already allocated</code></td><td>Another app holds 3000, 8080, 9090 or 3001. Find it with <code>netstat -ano | findstr :3000</code> (Windows), then close it.</td></tr>
+      <tr><td><code>$'\r': command not found</code> in a .sh script</td><td>Windows line endings. Run <code>git config --global core.autocrlf input</code>, then clone again.</td></tr>
+      <tr><td><code>Not authorized to perform sts:AssumeRoleWithWebIdentity</code></td><td>The OIDC role doesn't trust your repo. Check the repo name and the numeric IDs in bootstrap tfvars, re-apply the bootstrap, and check the secret.</td></tr>
+      <tr><td><code>Error acquiring the state lock</code></td><td>Another plan or apply is running (laptop or GitHub). Wait. If one crashed: <code>terraform force-unlock &lt;ID&gt;</code>.</td></tr>
+      <tr><td><code>no cached repo found</code> (Helm, laptop apply)</td><td>Run <code>./scripts/helm-repos.sh</code> once.</td></tr>
+      <tr><td>kubectl: <code>Unauthorized</code></td><td>Your ARN isn't in <code>cluster_admin_arns</code>. Add it and push. Also re-run <code>aws eks update-kubeconfig</code>.</td></tr>
+      <tr><td>Pods <code>ImagePullBackOff</code></td><td>No images in ECR yet. Run <b>App CI → Run workflow</b>.</td></tr>
+      <tr><td>Argo CD <code>OutOfSync</code> / <code>SyncFailed</code></td><td>Usually a YAML error in <code>gitops/</code>. Check with <code>kubectl kustomize gitops/</code>.</td></tr>
+      <tr><td>Argo CD health <i>Suspended</i></td><td>Normal: a blue-green release is waiting for promote.</td></tr>
+      <tr><td>Ingress has no ADDRESS after 5 min</td><td><code>kubectl -n kube-system logs deploy/aws-load-balancer-controller</code></td></tr>
+      <tr><td><code>git push</code> rejected</td><td>The CI bot committed first. Run <code>git pull --rebase</code>, then push.</td></tr>
+      <tr><td>Grafana empty, Dude says "no data"</td><td>No traffic. Run the curl loop, wait 2 min, and check that Prometheus Targets show UP.</td></tr>
+      <tr><td>Rollouts dashboard empty</td><td>Wrong namespace. Open <code>localhost:3100/rollouts/telugu-pickles</code>.</td></tr>
+      <tr><td>Canary passed although it was bad</td><td>No traffic reached it during the analysis. Keep the curl loop running.</td></tr>
+      <tr><td><code>streamlit: command not found</code></td><td>Use <code>python -m streamlit run app.py</code>. In MSYS2 UCRT64, use <code>"/c/Program Files/Python312/python.exe" -m streamlit ...</code> or Git Bash.</td></tr>
+      <tr><td>Chat: <i>not reachable</i> / <code>ResourceNotFoundException</code></td><td>Wrong region or account. Put <code>AWS_REGION=us-east-1</code> in <code>.env</code> and check <code>aws sts get-caller-identity</code>.</td></tr>
+      <tr><td><code>AccessDeniedException</code> on a model</td><td>The model ID in tfvars differs from the one being called, or the account can't use it. Test with <code>aws bedrock-runtime converse</code>.</td></tr>
+      <tr><td><code>Model use case details have not been submitted</code></td><td>Claude needs the Anthropic form. Stay on Nova, or submit it in the Model catalog.</td></tr>
+      <tr><td><code>ThrottlingException</code> from Bedrock</td><td>Too many calls at once. The Lambda retries 5× adaptively, so wait a minute and ask again.</td></tr>
+      <tr><td>Dude tool error <code>403 Forbidden</code></td><td><code>kubectl get clusterrolebinding aiops-reader</code> and <code>aws eks list-access-entries --cluster-name telugu-pickles-eks --region us-east-1</code></td></tr>
+      <tr><td><code>terraform destroy</code> stuck on VPC or subnets</td><td>A leftover load balancer or stuck pods. Run <code>pre-destroy.sh</code>, force-delete the pods, and destroy again.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ============================================================ CHEATS -->
+<section class="stop" id="cheats" data-stop="cheats">
+  <div class="stop-head"><div class="num">≡</div><div><h2>Cheat sheet and costs</h2><div class="meta"><span>Keep this tab open in class</span></div></div>
+    <label class="donebox"><input type="checkbox" data-done="cheats"> Read</label></div>
+  <div class="prose">
+    <div class="code"><div class="lab"><span>Git Bash: the commands you'll use most</span><button class="copy">Copy</button></div><pre><span class="c"># connect</span>
+aws eks update-kubeconfig --name telugu-pickles-eks --region us-east-1
+ALB=$(kubectl -n telugu-pickles get ingress frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+<span class="c"># look</span>
+kubectl -n telugu-pickles get pods,rollouts
+kubectl -n argocd get application telugu-pickles
+kubectl -n telugu-pickles logs deploy/order-service --tail=50
+
+<span class="c"># UIs (one terminal each)</span>
+kubectl -n argocd port-forward svc/argocd-server 8081:80
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3001:80
+kubectl -n argocd port-forward svc/argo-rollouts-dashboard 3100:3100
+
+<span class="c"># release</span>
+kubectl argo rollouts -n telugu-pickles promote frontend
+kubectl argo rollouts -n telugu-pickles abort catalog-service
+
+<span class="c"># Dude</span>
+cd projects/aiops-assistant && python -m streamlit run app.py
+aws logs tail /aws/lambda/telugu-pickles-kira --region us-east-1 --since 15m
+
+<span class="c"># stop the bill</span>
+cd projects/Infrastructure && ../../scripts/pre-destroy.sh telugu-pickles-eks us-east-1 && terraform destroy</pre></div>
+
+    <h3>What costs money</h3>
+    <div class="tbl"><table>
+      <tr><th>Resource</th><th>Approx.</th><th>Billed</th></tr>
+      <tr><td>EKS control plane</td><td class="n">$0.10 / h</td><td>while the cluster exists</td></tr>
+      <tr><td>2 × m7i-flex.large nodes</td><td class="n">$0.19 / h</td><td>while running</td></tr>
+      <tr><td>Application Load Balancer</td><td class="n">$0.03 / h</td><td>while it exists</td></tr>
+      <tr><td>EBS, CloudWatch Logs, ECR storage</td><td class="n">&lt; $0.02 / h</td><td>by size</td></tr>
+      <tr><td>Bedrock: Nova Pro (Dude)</td><td class="n">~$0.80 in / $3.20 out per 1M tokens</td><td>per call only</td></tr>
+      <tr><td>Bedrock: Nova Lite (agents)</td><td class="n">~$0.06 in / $0.24 out per 1M tokens</td><td>per call only</td></tr>
+      <tr><td>Lambda, SNS</td><td class="n">≈ $0</td><td>free tier at class volume</td></tr>
+      <tr><td><b>Cluster total</b></td><td class="n"><b>≈ $0.35 / h ≈ $8.40 / day</b></td><td></td></tr>
+    </table></div>
+    <p>A real example: a full day of class testing made 95 Bedrock calls (21 Nova Pro, 74 Nova Lite, about 160K tokens). That's about <b>$0.05</b> in total. One question to Dude costs well under 1¢. Bedrock prices are approximate; check the <a href="https://aws.amazon.com/bedrock/pricing/" target="_blank" rel="noopener">Bedrock pricing page</a>. To be safe, set <b>Billing → Budgets</b> to a $5 monthly budget with an email alert.</p>
+  </div>
+</section>
+
+<footer>Telugu Pickles · DevOps + AIOps capstone. Sources in the repo: <code>docs/CICD-EKS-GUIDE.md</code>, <code>projects/telugu-pickles/LOCAL-SETUP.md</code>, <code>docs/reference/PROGRESSIVE-DELIVERY.md</code>, <code>projects/aiops-assistant/README.md</code>. Your progress ticks are saved in this browser only.</footer>
+</main>
+</div>
+
+<script>
+(function(){
+  // copy buttons
+  document.querySelectorAll('.code').forEach(function(box){
+    var btn = box.querySelector('.copy'); if(!btn) return;
+    btn.addEventListener('click', function(){
+      var pre = box.querySelector('pre');
+      var text = pre.innerText.replace(/\u00a0/g,' ');
+      var done = function(){ btn.textContent='Copied'; btn.classList.add('ok'); setTimeout(function(){btn.textContent='Copy'; btn.classList.remove('ok')},1400) };
+      try{
+        navigator.clipboard.writeText(text).then(done, function(){ selectPre(pre); });
+      }catch(e){ selectPre(pre); }
+    });
+  });
+  function selectPre(pre){ var r=document.createRange(); r.selectNodeContents(pre); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+  // question chips copy
+  document.querySelectorAll('#qlist button').forEach(function(b){
+    b.addEventListener('click', function(){
+      var q = b.childNodes[0].textContent.trim();
+      var small = b.querySelector('small'), old = small.textContent;
+      try{ navigator.clipboard.writeText(q).then(function(){ small.textContent='Copied, paste it into the chat'; setTimeout(function(){small.textContent=old},1500) }, function(){}); }catch(e){}
+    });
+  });
+
+  // progress
+  var KEY='tp-field-guide-done';
+  var state={}; try{ state=JSON.parse(localStorage.getItem(KEY)||'{}')||{} }catch(e){ state={} }
+  var boxes=[].slice.call(document.querySelectorAll('input[data-done]'));
+  var total=16;
+  function paint(){
+    var n=0;
+    boxes.forEach(function(b){
+      var id=b.getAttribute('data-done'); b.checked=!!state[id];
+      var link=document.querySelector('.stations a[href="#'+id+'"]');
+      if(link) link.classList.toggle('done', !!state[id]);
+      if(state[id] && ['trouble','cheats'].indexOf(id)<0) n++;
+    });
+    document.getElementById('progText').textContent = n+' of '+total+' stops done';
+    document.getElementById('progBar').style.width = Math.round(n/total*100)+'%';
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', function(){ state[b.getAttribute('data-done')]=b.checked; try{ localStorage.setItem(KEY, JSON.stringify(state)) }catch(e){} paint(); }); });
+  paint();
+
+  // active station
+  var links=[].slice.call(document.querySelectorAll('.stations a'));
+  var secs=links.map(function(a){ return document.querySelector(a.getAttribute('href')) }).filter(Boolean);
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ links.forEach(function(l){ l.classList.toggle('active', l.getAttribute('href')==='#'+e.target.id) }) } });
+    },{rootMargin:'-20% 0px -70% 0px'});
+    secs.forEach(function(s){ io.observe(s) });
+  }
+})();
+</script>
+</body>
+</html>
