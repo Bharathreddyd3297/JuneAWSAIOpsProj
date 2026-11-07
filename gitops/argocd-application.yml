@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: telugu-pickles
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    targetRevision: YOUR_BRANCH
+    path: gitops
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telugu-pickles
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

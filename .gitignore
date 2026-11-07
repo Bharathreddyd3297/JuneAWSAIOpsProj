@@ -13,6 +13,7 @@ ENV/
 .idea/
 *.swp
 *.swo
+.azure/
 
 # OS
 .DS_Store
@@ -22,6 +23,8 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
+projects/Infrastructure/terraform.tfvars
+projects/Infrastructure/bootstrap/terraform.tfvars
 
 # Kubernetes
 *.kubeconfig
@@ -32,6 +35,7 @@ Thumbs.db
 
 # Environment variables
 .env
+projects/aiops-assistant/function/local.settings.json
 
 # Node / build output
 node_modules/
@@ -44,5 +48,5 @@ dist/
 *_override.tf
 *_override.tf.json
 
-# AIOps Lambda build output
-projects/Infrastructure/modules/aiops/.build/
+# AIOps Function build output
+projects/aiops-assistant/function/.python_packages/

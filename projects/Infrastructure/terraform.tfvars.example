@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and set these values for a local deployment.
+resource_group_name = "telugu-pickles-azure"
+node_vm_size        = "Standard_D2s_v5"
+
+# Copy principal_id from projects/Infrastructure/bootstrap/terraform output.
+github_actions_principal_id = "REPLACE_WITH_BOOTSTRAP_PRINCIPAL_ID"
+# Optional Entra object IDs for human kubectl admins.
+aks_admin_principal_ids = []
+
+# The model account is provisioned in South India; the rest of the project is in Central India.
+azure_openai_location        = "southindia"
+azure_openai_model_name      = "gpt-4o-mini"
+azure_openai_model_version   = "2024-07-18"
+azure_openai_deployment_name = "gpt-4o-mini"
+azure_openai_model_capacity = 50
+azure_openai_api_version     = "2024-10-21"
+alert_email                  = ""

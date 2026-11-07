@@ -1,781 +1,85 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Telugu Pickles System Design</title>
-<meta name="description" content="End-to-end system design of Telugu Pickles: microservices, local Docker, Amazon ECR, EKS via Terraform, GitOps with Argo CD, observability and AIOps with Amazon Bedrock.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@600;700&family=Poppins:wght@400;500;600;700&family=Yeseva+One&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --red:#C62828;--red-dark:#8E1414;--red-deep:#5C0B0B;--red-soft:#FDECEA;
-  --green:#2E7D32;--green-dark:#1B5E20;--green-deep:#0F3D17;--green-soft:#E8F5E9;
-  --gold:#E0A526;--bg:#FFF9F0;--paper:#FFFFFF;--ink:#2A1A12;--muted:#6E5D53;--line:#EADFD3;
-  --code-bg:#1E1712;--code-ink:#F6E7D7;--blue:#1565C0;--blue-soft:#E3F0FC;
-  --shadow:0 1px 2px rgba(60,20,10,.06),0 8px 24px rgba(60,20,10,.07);
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#17110D;--paper:#211812;--ink:#F3E6DA;--muted:#B8A698;--line:#3A2C22;
-  --red-soft:#3A1614;--green-soft:#15291A;--blue-soft:#14273B;--code-bg:#0E0A08;
-}}
-:root[data-theme="dark"]{--bg:#17110D;--paper:#211812;--ink:#F3E6DA;--muted:#B8A698;--line:#3A2C22;--red-soft:#3A1614;--green-soft:#15291A;--blue-soft:#14273B;--code-bg:#0E0A08;}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.65 Poppins,system-ui,sans-serif}
-a{color:var(--red)}
-code,pre,.mono{font-family:"JetBrains Mono",Consolas,monospace}
-code{background:var(--red-soft);padding:.1em .35em;border-radius:5px;font-size:.88em}
-pre{background:var(--code-bg);color:var(--code-ink);padding:1rem 1.1rem;border-radius:12px;overflow-x:auto;font-size:.82rem;line-height:1.55;margin:.8rem 0 1.2rem}
-pre code{background:none;padding:0;color:inherit}
-pre .c{color:#9C8A7A}
-h1,h2,h3{line-height:1.2}
-h2{font-family:"Yeseva One",Georgia,serif;font-weight:400;font-size:1.9rem;color:var(--red-dark);margin:0 0 .4rem}
-:root[data-theme="dark"] h2{color:#FF8A80}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h2{color:#FF8A80}}
-h3{font-size:1.1rem;margin:1.6rem 0 .5rem;color:var(--green-dark)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) h3{color:#81C784}}
-:root[data-theme="dark"] h3{color:#81C784}
-.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1320px;margin:0 auto}
-nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:1.5rem 1rem 2rem 1.25rem;border-right:1px solid var(--line)}
-.toc .brand{font-family:"Yeseva One",serif;color:var(--red);font-size:1.25rem}
-.toc .brand-te{font-family:"Noto Sans Telugu",sans-serif;color:var(--green);font-size:.8rem;font-weight:700;margin-bottom:1rem}
-.toc ol{list-style:none;padding:0;margin:0;counter-reset:s}
-.toc li{counter-increment:s}
-.toc a{display:block;padding:.28rem .5rem;border-radius:7px;color:var(--ink);text-decoration:none;font-size:.86rem}
-.toc a::before{content:counter(s) ". ";color:var(--muted)}
-.toc a:hover{background:var(--red-soft);color:var(--red)}
-.toc button{margin-top:1rem;font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:.3rem .8rem;cursor:pointer}
-main{padding:0 2.5rem 4rem;min-width:0}
-.hero{margin:0 -2.5rem 2rem;padding:3rem 2.5rem 2.6rem;color:#fff;position:relative;overflow:hidden;
-  background:radial-gradient(circle at 88% 20%,rgba(255,255,255,.12) 0 16%,transparent 17%),radial-gradient(circle at 5% 100%,rgba(46,125,50,.45) 0 22%,transparent 23%),linear-gradient(135deg,var(--red),var(--red-dark) 60%,var(--red-deep))}
-.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:repeating-linear-gradient(90deg,var(--green) 0 22px,var(--gold) 22px 26px,var(--green) 26px 48px)}
-.hero .te{font-family:"Noto Sans Telugu",sans-serif;color:#FFD8A8;font-weight:700;font-size:1.1rem}
-.hero h1{font-family:"Yeseva One",serif;font-weight:400;font-size:clamp(2rem,4vw,3rem);margin:.2rem 0 .6rem}
-.hero p{max-width:52rem;color:#FFECEC;margin:0}
-.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.2rem}
-.meta span{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:.2rem .7rem;border-radius:999px;font-size:.8rem}
-section{padding:2.2rem 0 1rem;border-bottom:1px dashed var(--line)}
-section>p.lead{color:var(--muted);margin-top:0}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
-.kpi{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;box-shadow:var(--shadow)}
-.kpi b{display:block;font-size:1.6rem;color:var(--red);line-height:1.1}
-.kpi span{font-size:.82rem;color:var(--muted)}
-.kpi.g b{color:var(--green)}
-.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.25rem;box-shadow:var(--shadow);margin:1rem 0}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
-.tbl{width:100%;overflow-x:auto;margin:.8rem 0 1.2rem}
-table{border-collapse:collapse;width:100%;font-size:.87rem;background:var(--paper);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
-th{background:var(--green-dark);color:#fff;text-align:left;font-weight:600;padding:.6rem .75rem;white-space:nowrap}
-td{padding:.55rem .75rem;border-top:1px solid var(--line);vertical-align:top}
-tr:nth-child(even) td{background:color-mix(in srgb,var(--bg) 60%,var(--paper))}
-.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:.1rem .55rem;border-radius:999px;white-space:nowrap}
-.pill.r{background:var(--red-soft);color:var(--red)} .pill.g{background:var(--green-soft);color:var(--green)} .pill.b{background:var(--blue-soft);color:var(--blue)}
-.callout{border-left:4px solid var(--green);background:var(--green-soft);padding:.8rem 1rem;border-radius:0 12px 12px 0;margin:1rem 0}
-.callout.r{border-color:var(--red);background:var(--red-soft)}
-.callout.y{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,var(--paper))}
-.callout b:first-child{display:block;margin-bottom:.15rem}
-figure{margin:1.2rem 0;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1rem;box-shadow:var(--shadow)}
-figure svg{width:100%;height:auto;display:block}
-figcaption{font-size:.82rem;color:var(--muted);margin-top:.5rem;text-align:center}
-svg text{font-family:Poppins,system-ui,sans-serif}
-.svg-ink{fill:var(--ink)} .svg-muted{fill:var(--muted)} .svg-paper{fill:var(--paper)} .svg-line{stroke:var(--line)} .svg-bg{fill:var(--bg)}
-ul.check{list-style:none;padding:0} ul.check li{padding-left:1.6rem;position:relative;margin:.35rem 0}
-ul.check li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
-ol.steps{counter-reset:st;list-style:none;padding:0}
-ol.steps>li{counter-increment:st;position:relative;padding-left:2.6rem;margin:1rem 0}
-ol.steps>li::before{content:counter(st);position:absolute;left:0;top:.05rem;width:1.8rem;height:1.8rem;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem}
-.swatches{display:flex;flex-wrap:wrap;gap:.6rem}
-.sw{display:flex;align-items:center;gap:.5rem;font-size:.8rem;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:.25rem .7rem .25rem .3rem}
-.sw i{width:22px;height:22px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.1)}
-footer{padding:2rem 0;color:var(--muted);font-size:.85rem}
-@media (max-width:980px){
-  .layout{grid-template-columns:minmax(0,1fr)}
-  nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:1rem 16px}
-  .toc ol{columns:2}
-  main{padding:0 16px 3rem}
-  .hero{margin:0 -16px 1.5rem;padding:2rem 16px}
-  .grid2,.grid3{grid-template-columns:minmax(0,1fr)}
-}
-@media print{nav.toc{display:none}.layout{display:block}.hero{print-color-adjust:exact;-webkit-print-color-adjust:exact}section{break-inside:avoid-page}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telugu Pickles — Azure System Design</title>
+  <style>
+    :root { color-scheme: light; --ink: #17243b; --muted: #51627b; --blue: #0078d4; --pale: #eef6fc; --line: #c9d8e8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f7f9fc; color: var(--ink); font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 1000px; margin: auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; }
+    h2 { margin-top: 2.5rem; }
+    p, li { color: var(--muted); }
+    a { color: #005a9e; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border: 1px solid var(--line); border-radius: 8px; background: white; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { padding: .7rem; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--pale); }
+    .lead { font-size: 1.15rem; }
+    .note { padding: .8rem 1rem; border-left: 4px solid var(--blue); background: var(--pale); }
+  </style>
 </head>
 <body>
-<div class="layout">
-<nav class="toc" aria-label="Contents">
-  <div class="brand">Telugu Pickles</div>
-  <div class="brand-te">తెలుగు పచ్చళ్ళు · System Design</div>
-  <ol>
-    <li><a href="#summary">Summary</a></li>
-    <li><a href="#architecture">Architecture</a></li>
-    <li><a href="#services">Services</a></li>
-    <li><a href="#communication">Communication</a></li>
-    <li><a href="#checkout">Checkout saga</a></li>
-    <li><a href="#data">Data design</a></li>
-    <li><a href="#frontend">Frontend</a></li>
-    <li><a href="#build">Build &amp; images</a></li>
-    <li><a href="#local">Run locally</a></li>
-    <li><a href="#aws">AWS infrastructure</a></li>
-    <li><a href="#k8s">Kubernetes design</a></li>
-    <li><a href="#cicd">CI/CD &amp; GitOps</a></li>
-    <li><a href="#observability">Observability</a></li>
-    <li><a href="#aiops">AIOps with Bedrock</a></li>
-    <li><a href="#security">Security</a></li>
-    <li><a href="#highlights">Highlights</a></li>
-    <li><a href="#runbook">Runbook</a></li>
-    <li><a href="#status">Status &amp; next steps</a></li>
-    <li><a href="#api">API reference</a></li>
-  </ol>
-  <button type="button" id="theme">Toggle dark / light</button>
-</nav>
-
 <main>
-<header class="hero">
-  <div class="te">అమ్మ చేతి రుచి — Amma chethi ruchi</div>
-  <h1>Telugu Pickles — System Design</h1>
-  <p>An e-commerce store for authentic Indian veg and non-veg pickles, built as a cloud-native microservice system to demonstrate the full DevOps journey: <b>run locally → push to Amazon ECR → provision Amazon EKS with Terraform → continuous delivery with Argo CD → AIOps with Amazon Bedrock.</b></p>
-  <div class="meta"><span>Version 1.0</span><span>Region us-east-1</span><span>Node.js 22 · React 18 · PostgreSQL 16</span><span>EKS 1.34 · Argo CD · Prometheus · Grafana</span></div>
-</header>
+  <p><a href="../student-guide.html">Student quick start</a> ·
+     <a href="AKS-GUIDE.md">AKS deployment guide</a></p>
+  <h1>Telugu Pickles on Azure</h1>
+  <p class="lead">A React storefront and six Node.js microservices deployed to AKS with GitOps,
+     progressive delivery, monitoring, and an Azure-hosted AIOps assistant.</p>
 
-<!-- 1 -->
-<section id="summary">
-  <h2>Summary</h2>
-  <p class="lead">What was built and why it is shaped this way.</p>
-  <div class="kpis">
-    <div class="kpi"><b>7</b><span>container images</span></div>
-    <div class="kpi g"><b>6</b><span>Node.js microservices</span></div>
-    <div class="kpi"><b>36</b><span>pickles (20 veg · 16 non-veg)</span></div>
-    <div class="kpi g"><b>5</b><span>databases, one per stateful service</span></div>
-    <div class="kpi"><b>1</b><span>public entry point (nginx → gateway)</span></div>
-    <div class="kpi g"><b>25 / 25</b><span>end-to-end smoke checks passing locally</span></div>
-  </div>
-  <p>Telugu Pickles replaces the earlier "boutique" demo. Shoppers browse Andhra, Telangana and pan-Indian pickles (Avakaya, Gongura, Magaya, Natu Kodi, Gongura Mutton, Royyala, Peethala…), filter by veg / non-veg, region and spice level, add 250 g / 500 g / 1 kg packs to a cart, and check out with UPI, card or cash on delivery (payments are simulated).</p>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">Design goals</h3>
-      <ul class="check">
-        <li>Realistic enough to be worth operating: auth, catalogue, cart, orders, payments, stock.</li>
-        <li>One image runs unchanged on a laptop and on EKS (config only through env vars).</li>
-        <li>Self-bootstrapping: no init scripts, restore jobs or manual SQL.</li>
-        <li>Observable by design: JSON logs with request IDs, RED + business metrics.</li>
-        <li>Controllable failure: fault-injection switches for the AIOps demo.</li>
-      </ul>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Delivery path</h3>
-      <ol class="steps" style="margin:0">
-        <li><b>Local</b>: <code>docker compose up</code> → 10 containers.</li>
-        <li><b>ECR</b>: 7 repositories (Terraform) + image push.</li>
-        <li><b>EKS</b>: VPC, cluster, nodes, EBS CSI, Argo CD, monitoring (Terraform).</li>
-        <li><b>CD</b>: GitHub Actions bumps tags in <code>gitops/</code>; Argo CD syncs.</li>
-        <li><b>AIOps</b>: Bedrock agent "Kira" reads logs, metrics and cluster health.</li>
-      </ol>
-    </div>
-  </div>
-</section>
+  <h2>System architecture</h2>
+  <pre><code>                         Azure subscription
+  GitHub OIDC --> Terraform AzureRM
+                   |-- Virtual network + AKS (Entra ID, autoscaling)
+                   |-- Azure Container Registry
+                   |-- Key Vault, Log Analytics, Application Insights
+                   \-- Azure Functions Flex Consumption + managed identity
 
-<!-- 2 -->
-<section id="architecture">
-  <h2>Architecture</h2>
-  <p class="lead">Logical view on Amazon EKS. Locally the same boxes run as Docker Compose containers.</p>
-  <figure>
-    <svg viewBox="0 0 1000 600" role="img" aria-label="Architecture diagram">
-      <defs>
-        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8E1414"/></marker>
-        <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2E7D32"/></marker>
-        <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1565C0"/></marker>
-      </defs>
-      <!-- browser -->
-      <rect x="20" y="40" width="130" height="64" rx="12" fill="#FFF9F0" stroke="#C62828" stroke-width="2"/>
-      <text x="85" y="68" text-anchor="middle" font-weight="700" font-size="14" fill="#5C0B0B">Shopper</text>
-      <text x="85" y="88" text-anchor="middle" font-size="11" fill="#6E5D53">browser / mobile</text>
-      <!-- cluster boundary -->
-      <rect x="190" y="14" width="600" height="572" rx="18" fill="none" stroke="#2E7D32" stroke-width="2" stroke-dasharray="8 6"/>
-      <text x="206" y="36" font-size="12" font-weight="700" fill="#1B5E20">Amazon EKS · namespace telugu-pickles</text>
-      <!-- LB -->
-      <rect x="210" y="52" width="120" height="44" rx="10" fill="#E3F0FC" stroke="#1565C0" stroke-width="1.5"/>
-      <text x="270" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#0D47A1">AWS Load</text>
-      <text x="270" y="87" text-anchor="middle" font-size="12" font-weight="600" fill="#0D47A1">Balancer :80</text>
-      <!-- frontend -->
-      <rect x="360" y="44" width="170" height="60" rx="12" fill="#C62828"/>
-      <text x="445" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">frontend</text>
-      <text x="445" y="88" text-anchor="middle" font-size="11" fill="#FFE3E3">nginx + React SPA · ×2</text>
-      <!-- gateway -->
-      <rect x="360" y="150" width="170" height="60" rx="12" fill="#8E1414"/>
-      <text x="445" y="175" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">gateway :8080</text>
-      <text x="445" y="194" text-anchor="middle" font-size="11" fill="#FFE3E3">routing · rate limit · ×2 (HPA)</text>
-      <!-- services -->
-      <g font-size="12">
-        <rect x="210" y="270" width="130" height="56" rx="10" fill="#2E7D32"/><text x="275" y="294" text-anchor="middle" fill="#fff" font-weight="700">auth-service</text><text x="275" y="311" text-anchor="middle" fill="#DFF3E0" font-size="10.5">:4001 · JWT</text>
-        <rect x="355" y="270" width="130" height="56" rx="10" fill="#2E7D32"/><text x="420" y="294" text-anchor="middle" fill="#fff" font-weight="700">catalog-service</text><text x="420" y="311" text-anchor="middle" fill="#DFF3E0" font-size="10.5">:4002 · ×2 (HPA)</text>
-        <rect x="500" y="270" width="130" height="56" rx="10" fill="#2E7D32"/><text x="565" y="294" text-anchor="middle" fill="#fff" font-weight="700">cart-service</text><text x="565" y="311" text-anchor="middle" fill="#DFF3E0" font-size="10.5">:4003</text>
-        <rect x="645" y="270" width="130" height="56" rx="10" fill="#2E7D32"/><text x="710" y="294" text-anchor="middle" fill="#fff" font-weight="700">order-service</text><text x="710" y="311" text-anchor="middle" fill="#DFF3E0" font-size="10.5">:4004 · saga</text>
-        <rect x="645" y="380" width="130" height="56" rx="10" fill="#1B5E20" stroke="#E0A526" stroke-width="2" stroke-dasharray="5 3"/><text x="710" y="404" text-anchor="middle" fill="#fff" font-weight="700">payment-service</text><text x="710" y="421" text-anchor="middle" fill="#DFF3E0" font-size="10.5">:4005 · internal only</text>
-      </g>
-      <!-- postgres -->
-      <rect x="270" y="470" width="370" height="90" rx="14" fill="#FFF9F0" stroke="#8E1414" stroke-width="2"/>
-      <text x="455" y="494" text-anchor="middle" font-size="14" font-weight="700" fill="#5C0B0B">PostgreSQL 16 StatefulSet · gp3 EBS 10 GiB</text>
-      <g font-size="11" font-family="JetBrains Mono,monospace">
-        <rect x="285" y="508" width="62" height="36" rx="6" fill="#FDECEA"/><text x="316" y="531" text-anchor="middle" fill="#8E1414">auth_db</text>
-        <rect x="355" y="508" width="78" height="36" rx="6" fill="#FDECEA"/><text x="394" y="531" text-anchor="middle" fill="#8E1414">catalog_db</text>
-        <rect x="441" y="508" width="58" height="36" rx="6" fill="#FDECEA"/><text x="470" y="531" text-anchor="middle" fill="#8E1414">cart_db</text>
-        <rect x="507" y="508" width="66" height="36" rx="6" fill="#FDECEA"/><text x="540" y="531" text-anchor="middle" fill="#8E1414">orders_db</text>
-        <rect x="581" y="508" width="50" height="36" rx="6" fill="#FDECEA"/><text x="606" y="527" text-anchor="middle" fill="#8E1414" font-size="9.5">payments</text><text x="606" y="539" text-anchor="middle" fill="#8E1414" font-size="9.5">_db</text>
-      </g>
-      <!-- arrows north-south -->
-      <path d="M150 72 H206" stroke="#8E1414" stroke-width="2" marker-end="url(#ar)" fill="none"/>
-      <path d="M330 74 H356" stroke="#8E1414" stroke-width="2" marker-end="url(#ar)" fill="none"/>
-      <path d="M445 104 V146" stroke="#8E1414" stroke-width="2" marker-end="url(#ar)" fill="none"/><text x="452" y="130" font-size="10.5" fill="#8E1414">/api/*</text>
-      <path d="M400 210 L290 266" stroke="#8E1414" stroke-width="1.8" marker-end="url(#ar)" fill="none"/>
-      <path d="M430 210 L422 266" stroke="#8E1414" stroke-width="1.8" marker-end="url(#ar)" fill="none"/>
-      <path d="M465 210 L548 266" stroke="#8E1414" stroke-width="1.8" marker-end="url(#ar)" fill="none"/>
-      <path d="M500 210 L690 266" stroke="#8E1414" stroke-width="1.8" marker-end="url(#ar)" fill="none"/>
-      <!-- east-west -->
-      <path d="M500 298 H489" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)" fill="none"/>
-      <path d="M645 290 H634" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)" fill="none"/>
-      <path d="M660 326 C 600 360, 470 350, 440 330" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)" fill="none"/>
-      <path d="M710 326 V376" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)" fill="none"/>
-      <text x="530" y="360" font-size="10.5" fill="#1B5E20">stock reserve / release</text>
-      <!-- db arrows -->
-      <g stroke="#6E5D53" stroke-width="1.3" stroke-dasharray="4 3" fill="none">
-        <path d="M275 326 V466"/><path d="M420 326 V466"/><path d="M565 326 V466"/><path d="M690 326 L600 466"/><path d="M700 436 L625 466"/>
-      </g>
-      <!-- right column: platform -->
-      <rect x="815" y="40" width="170" height="100" rx="12" fill="#FFF9F0" stroke="#E0A526" stroke-width="2"/>
-      <text x="900" y="64" text-anchor="middle" font-size="13" font-weight="700" fill="#5C0B0B">Prometheus</text>
-      <text x="900" y="82" text-anchor="middle" font-size="11" fill="#6E5D53">ServiceMonitor scrapes</text>
-      <text x="900" y="97" text-anchor="middle" font-size="11" fill="#6E5D53">/metrics every 15 s</text>
-      <text x="900" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#5C0B0B">+ Grafana + alerts</text>
-      <rect x="815" y="170" width="170" height="72" rx="12" fill="#FFF9F0" stroke="#E0A526" stroke-width="2"/>
-      <text x="900" y="196" text-anchor="middle" font-size="13" font-weight="700" fill="#5C0B0B">Fluent Bit</text>
-      <text x="900" y="214" text-anchor="middle" font-size="11" fill="#6E5D53">JSON stdout logs →</text>
-      <text x="900" y="229" text-anchor="middle" font-size="11" fill="#6E5D53">CloudWatch Logs</text>
-      <rect x="815" y="272" width="170" height="72" rx="12" fill="#E3F0FC" stroke="#1565C0" stroke-width="2"/>
-      <text x="900" y="298" text-anchor="middle" font-size="13" font-weight="700" fill="#0D47A1">Argo CD</text>
-      <text x="900" y="316" text-anchor="middle" font-size="11" fill="#33557A">syncs gitops/ from</text>
-      <text x="900" y="331" text-anchor="middle" font-size="11" fill="#33557A">GitHub (main)</text>
-      <rect x="815" y="380" width="170" height="110" rx="12" fill="#0F3D17"/>
-      <text x="900" y="405" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Amazon Bedrock</text>
-      <text x="900" y="422" text-anchor="middle" font-size="11" fill="#CFE8D0">Agent "Kira" + 3 Lambdas</text>
-      <text x="900" y="444" text-anchor="middle" font-size="10.5" fill="#CFE8D0">fetch_logs · fetch_metrics</text>
-      <text x="900" y="459" text-anchor="middle" font-size="10.5" fill="#CFE8D0">fetch_service_health</text>
-      <text x="900" y="478" text-anchor="middle" font-size="10.5" fill="#FFD8A8">(AIOps phase)</text>
-      <path d="M813 90 H790" stroke="#E0A526" stroke-width="2" fill="none"/>
-      <path d="M900 380 V346" stroke="#1565C0" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ab)" fill="none"/>
-      <path d="M870 380 C 860 300, 860 260, 870 246" stroke="#1565C0" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ab)" fill="none"/>
-      <path d="M940 380 C 960 250, 960 180, 940 144" stroke="#1565C0" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ab)" fill="none"/>
-    </svg>
-    <figcaption>Red = north–south (browser traffic) · Green = east–west (service-to-service REST) · Dashed grey = SQL · Blue dashed = AIOps reads. Only the load balancer is public; payment-service and every <code>/internal/*</code> route are unreachable from outside.</figcaption>
-  </figure>
-</section>
+  GitHub Actions --> build/test/scan --> ACR
+          \-------- commit image tags --> GitOps repository
+                                           |
+                                     Argo CD in AKS
+                                           |
+  Azure Standard Load Balancer <-- ingress-nginx <-- frontend Service
+                                           |
+  frontend --> gateway --> auth / catalog / cart / order --> payment
+                                |             |
+                                +-- PostgreSQL StatefulSet + Azure Disk CSI
 
-<!-- 3 -->
-<section id="services">
-  <h2>Services</h2>
-  <p class="lead">Six backend services share one tiny internal framework (<code>services/common</code>) so they behave identically: logging, metrics, health, chaos switches, errors, graceful shutdown.</p>
-  <div class="tbl"><table>
-    <tr><th>Service</th><th>Port</th><th>Owns</th><th>Responsibility</th><th>Calls</th><th>Public?</th></tr>
-    <tr><td><b>frontend</b></td><td>80</td><td>—</td><td>React SPA served by nginx; reverse-proxies <code>/api</code> to the gateway (same origin, no CORS)</td><td>gateway</td><td><span class="pill g">via LB</span></td></tr>
-    <tr><td><b>gateway</b></td><td>8080</td><td>—</td><td>Only API entry point. Prefix routing, request IDs, security headers, login rate limiting (20/min/IP), aggregated <code>/api/health</code></td><td>auth, catalog, cart, order</td><td><span class="pill g">via frontend</span></td></tr>
-    <tr><td><b>auth-service</b></td><td>4001</td><td><code>auth_db</code></td><td>Register / login, bcrypt hashes, issues signed JWTs (12 h), profile</td><td>—</td><td><span class="pill b">/api/auth</span></td></tr>
-    <tr><td><b>catalog-service</b></td><td>4002</td><td><code>catalog_db</code></td><td>36 pickles, search &amp; filters, stock in grams with row-locked reserve / release</td><td>—</td><td><span class="pill b">/api/products</span></td></tr>
-    <tr><td><b>cart-service</b></td><td>4003</td><td><code>cart_db</code></td><td>Per-user cart, guest-cart merge; prices always fetched live from catalog</td><td>catalog</td><td><span class="pill b">/api/cart</span></td></tr>
-    <tr><td><b>order-service</b></td><td>4004</td><td><code>orders_db</code></td><td>Checkout orchestration (saga), order history, cancellation</td><td>cart, catalog, payment</td><td><span class="pill b">/api/orders</span></td></tr>
-    <tr><td><b>payment-service</b></td><td>4005</td><td><code>payments_db</code></td><td>Mock UPI / card / COD processor with decline &amp; latency knobs</td><td>—</td><td><span class="pill r">internal only</span></td></tr>
-    <tr><td><b>postgres</b></td><td>5432</td><td>5 DBs</td><td>Single PostgreSQL 16 instance, one logical database per service</td><td>—</td><td><span class="pill r">internal only</span></td></tr>
-  </table></div>
-  <div class="card">
-    <h3 style="margin-top:0">Every service exposes the same operational surface</h3>
-    <div class="grid3">
-      <div><code>GET /health/live</code><br><span class="small" style="color:var(--muted)">process is up (liveness &amp; startup probe)</span></div>
-      <div><code>GET /health/ready</code><br><span class="small" style="color:var(--muted)">database reachable (readiness probe)</span></div>
-      <div><code>GET /metrics</code><br><span class="small" style="color:var(--muted)">Prometheus RED + Node.js + business metrics</span></div>
-    </div>
-  </div>
-</section>
+  AKS metrics --> Prometheus --> Grafana
+  AKS container logs --> Azure Monitor / Log Analytics
+  Logs + AKS API + Prometheus --> AIOps Function --> configured Azure model</code></pre>
 
-<!-- 4 -->
-<section id="communication">
-  <h2>How the application communicates</h2>
-  <p class="lead">Synchronous REST over Kubernetes DNS, authenticated with JWTs and traced with a request ID.</p>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">North–south (browser → system)</h3>
-      <ol class="steps">
-        <li>Browser loads the SPA from nginx and calls <b>relative</b> URLs like <code>/api/products</code>. No API host is baked into the bundle.</li>
-        <li>nginx proxies <code>/api/</code> to <code>${GATEWAY_URL}</code> (env-substituted at container start).</li>
-        <li>Gateway matches the prefix, strips <code>/api</code> and forwards: <code>/api/cart/items</code> → <code>cart-service:4003/cart/items</code>.</li>
-        <li>Upstream down? Gateway answers a friendly JSON 503 and counts <code>tp_dependency_errors_total</code>.</li>
-      </ol>
-    </div>
-    <div class="card"><h3 style="margin-top:0">East–west (service → service)</h3>
-      <ol class="steps">
-        <li>Discovery is plain DNS: <code>http://catalog-service:4002</code> (Compose network or Kubernetes Service).</li>
-        <li>A shared <code>callService()</code> client adds a 5 s timeout, forwards <code>Authorization</code> and <code>X-Request-Id</code>, and maps upstream 5xx to 502/503.</li>
-        <li>Internal-only routes live under <code>/internal/*</code> and are never routed by the gateway.</li>
-        <li>Every hop logs one JSON line carrying the same <code>requestId</code>, so one checkout can be traced across 4 services.</li>
-      </ol>
-    </div>
-  </div>
-  <h3>Authentication flow</h3>
-  <p><b>auth-service</b> signs a JWT (<code>sub</code> = user id, issuer <code>telugu-pickles-auth</code>) with <code>JWT_SECRET</code>. cart and order services verify it <b>locally</b> with the same secret via <code>requireAuth</code>, so no auth round-trip per request. When order-service calls cart-service it forwards the caller's token, so the cart is always read <i>as that user</i>.</p>
-  <h3>Request tracing example (real log lines from the local run)</h3>
-<pre><code>{"level":"ERROR","service":"payment-service","msg":"payment declined by bank","requestId":"4bba78e8-…","orderId":"ba424968-…","amount":5124,"method":"CARD"}
-{"level":"ERROR","service":"order-service","msg":"checkout failed at payment step","requestId":"4bba78e8-…","orderNumber":"TP-261104-92644","paymentStatus":402}</code></pre>
-</section>
+  <h2>Components</h2>
+  <table>
+    <thead><tr><th>Layer</th><th>Implementation</th><th>Operational notes</th></tr></thead>
+    <tbody>
+      <tr><td>Application</td><td>React SPA, Node.js services, PostgreSQL</td><td>Same containers run in Docker Compose and Kubernetes.</td></tr>
+      <tr><td>Compute</td><td>Azure Kubernetes Service</td><td>Azure CNI, Entra ID/RBAC, autoscaling, workload identity.</td></tr>
+      <tr><td>Images</td><td>Azure Container Registry</td><td>AKS kubelet identity has AcrPull; CI uses federated OIDC for AcrPush.</td></tr>
+      <tr><td>Ingress</td><td>ingress-nginx + Azure Standard Load Balancer</td><td>Public frontend only; blue-green preview is internal and accessed by port-forward.</td></tr>
+      <tr><td>Persistent data</td><td>AKS Azure Disk CSI</td><td>PostgreSQL PVC uses managed disks; backup before cluster destruction.</td></tr>
+      <tr><td>GitOps</td><td>Argo CD + Kustomize</td><td>CI commits full-SHA image tags; Argo CD applies desired state.</td></tr>
+      <tr><td>Release safety</td><td>Argo Rollouts</td><td>Frontend blue-green; catalog canary checks Prometheus error rates.</td></tr>
+      <tr><td>Observability</td><td>Prometheus, Grafana, Azure Monitor</td><td>Metrics and dashboards stay in-cluster; AKS logs are queried through Log Analytics.</td></tr>
+      <tr><td>AIOps</td><td>Azure Functions Python app + Azure OpenAI-compatible model</td><td>Managed identity reads logs and cluster state and invokes the Terraform-provisioned gpt-4o-mini endpoint in South India.</td></tr>
+    </tbody>
+  </table>
 
-<!-- 5 -->
-<section id="checkout">
-  <h2>Checkout saga</h2>
-  <p class="lead">order-service coordinates four steps across three services. A failure after stock is reserved triggers a compensating action, so inventory never leaks.</p>
-  <figure>
-    <svg viewBox="0 0 1000 520" role="img" aria-label="Checkout sequence diagram">
-      <defs><marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5C0B0B"/></marker>
-      <marker id="sg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2E7D32"/></marker>
-      <marker id="sr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#C62828"/></marker></defs>
-      <g font-size="13" font-weight="700" text-anchor="middle">
-        <rect x="20" y="10" width="120" height="36" rx="8" fill="#C62828"/><text x="80" y="33" fill="#fff">Browser</text>
-        <rect x="175" y="10" width="120" height="36" rx="8" fill="#8E1414"/><text x="235" y="33" fill="#fff">gateway</text>
-        <rect x="335" y="10" width="130" height="36" rx="8" fill="#2E7D32"/><text x="400" y="33" fill="#fff">order-service</text>
-        <rect x="505" y="10" width="120" height="36" rx="8" fill="#2E7D32"/><text x="565" y="33" fill="#fff">cart-service</text>
-        <rect x="665" y="10" width="140" height="36" rx="8" fill="#2E7D32"/><text x="735" y="33" fill="#fff">catalog-service</text>
-        <rect x="845" y="10" width="140" height="36" rx="8" fill="#1B5E20"/><text x="915" y="33" fill="#fff">payment-service</text>
-      </g>
-      <g stroke="#B8A698" stroke-dasharray="4 4"><path d="M80 46V505"/><path d="M235 46V505"/><path d="M400 46V505"/><path d="M565 46V505"/><path d="M735 46V505"/><path d="M915 46V505"/></g>
-      <g font-size="11.5" fill="#2A1A12" class="svg-ink">
-        <path d="M80 75H231" stroke="#5C0B0B" stroke-width="1.8" marker-end="url(#sa)"/><text x="88" y="69">POST /api/orders {address, UPI}</text>
-        <path d="M235 100H396" stroke="#5C0B0B" stroke-width="1.8" marker-end="url(#sa)"/><text x="243" y="94">POST /orders + JWT + X-Request-Id</text>
-        <path d="M400 130H561" stroke="#2E7D32" stroke-width="1.8" marker-end="url(#sg)"/><text x="408" y="124">① GET /cart (as user)</text>
-        <path d="M565 150H739" stroke="#2E7D32" stroke-width="1.4" marker-end="url(#sg)"/><text x="575" y="145" font-size="10.5">GET /products?slugs=…</text>
-        <path d="M561 172H404" stroke="#2E7D32" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#sg)"/><text x="425" y="167" font-size="10.5">items + server-side prices</text>
-        <path d="M400 205H731" stroke="#2E7D32" stroke-width="1.8" marker-end="url(#sg)"/><text x="420" y="199">② POST /internal/stock/reserve (SELECT … FOR UPDATE)</text>
-        <rect x="350" y="222" width="100" height="40" rx="6" fill="#FFF9F0" stroke="#8E1414"/><text x="400" y="240" text-anchor="middle" font-size="10.5">③ INSERT order</text><text x="400" y="254" text-anchor="middle" font-size="10.5">PENDING_PAYMENT</text>
-        <path d="M400 285H911" stroke="#2E7D32" stroke-width="1.8" marker-end="url(#sg)"/><text x="420" y="279">④ POST /internal/payments {orderId, amount, method}</text>
-      </g>
-      <!-- alt boxes -->
-      <rect x="300" y="300" width="690" height="92" rx="8" fill="none" stroke="#2E7D32" stroke-width="1.5"/>
-      <text x="310" y="317" font-size="11" font-weight="700" fill="#1B5E20">alt  payment CAPTURED / COD_PENDING</text>
-      <g font-size="11.5" class="svg-ink" fill="#2A1A12">
-        <path d="M911 335H404" stroke="#2E7D32" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#sg)"/><text x="600" y="330" font-size="10.5">201 {status, reference}</text>
-        <text x="410" y="355" font-size="10.5">UPDATE order → CONFIRMED · tp_orders_placed_total{status=CONFIRMED}++</text>
-        <path d="M400 375H561" stroke="#2E7D32" stroke-width="1.4" marker-end="url(#sg)"/><text x="575" y="379" font-size="10.5">DELETE /cart</text>
-      </g>
-      <rect x="300" y="400" width="690" height="78" rx="8" fill="none" stroke="#C62828" stroke-width="1.5"/>
-      <text x="310" y="417" font-size="11" font-weight="700" fill="#C62828">else  DECLINED (402) or payment-service down (503)</text>
-      <g font-size="11.5" class="svg-ink" fill="#2A1A12">
-        <text x="410" y="437" font-size="10.5">UPDATE order → PAYMENT_FAILED · log ERROR with requestId</text>
-        <path d="M400 458H731" stroke="#C62828" stroke-width="1.8" marker-end="url(#sr)"/><text x="420" y="453" font-size="10.5">compensate: POST /internal/stock/release</text>
-      </g>
-      <path d="M396 495H84" stroke="#5C0B0B" stroke-width="1.8" stroke-dasharray="5 3" marker-end="url(#sa)"/>
-      <text x="100" y="489" font-size="11" class="svg-ink" fill="#2A1A12">201 order · or 402 "declined, no money deducted" · or 503</text>
-    </svg>
-    <figcaption>Verified locally: with <code>PAYMENT_DECLINE_RATE=1</code> the order became <code>PAYMENT_FAILED</code>, 3 kg of prawn pickle was reserved and then released, and stock was back at 50 000 g after compensation.</figcaption>
-  </figure>
-  <div class="callout y"><b>Why a saga and not a distributed transaction?</b>Each service owns its own database, so one ACID transaction across them is impossible. The saga keeps every step locally atomic and undoes earlier steps explicitly. Idempotency keys and an outbox are the next hardening steps for production.</div>
-</section>
+  <h2>Trust boundaries</h2>
+  <ul>
+    <li>GitHub receives short-lived Azure tokens through federated OIDC; no cloud access keys are stored in GitHub.</li>
+    <li>AKS nodes pull images through the kubelet managed identity rather than a registry password.</li>
+    <li>The AIOps Function identity has read-only access to cluster resources and Log Analytics.</li>
+    <li>PostgreSQL/JWT credentials are generated by the AKS bootstrap script and stored as a Kubernetes Secret, not Git.</li>
+    <li>Argo CD and Grafana are not exposed publicly; operators use port-forwarding.</li>
+  </ul>
 
-<!-- 6 -->
-<section id="data">
-  <h2>Data design</h2>
-  <p class="lead">Database-per-service on one PostgreSQL server. No service ever reads another service's tables.</p>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">Self-bootstrapping databases</h3>
-      <p>On start-up each service (in <code>common/db.js</code>):</p>
-      <ol class="steps">
-        <li>retries the connection with back-off until Postgres is ready;</li>
-        <li>runs <code>CREATE DATABASE</code> for its own DB if missing (tolerates the race between replicas);</li>
-        <li>takes a <code>pg_advisory_lock</code> and runs idempotent migrations;</li>
-        <li>seeds data with UPSERTs (catalogue + demo user) — safe on every restart.</li>
-      </ol>
-      <p class="callout" style="margin:0">This removes the boutique project's fragile init-script / restore-job dance (and its <code>lost+found</code> confusion). A fresh EBS volume just works.</p>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Tables</h3>
-      <div class="tbl" style="margin:0"><table>
-        <tr><th>DB</th><th>Tables &amp; key columns</th></tr>
-        <tr><td><code>auth_db</code></td><td><b>users</b>(id uuid, name, email unique, phone, password_hash)</td></tr>
-        <tr><td><code>catalog_db</code></td><td><b>products</b>(slug pk, name, local_name, category veg|non-veg, region, spice 1-5, price_500g, rating, bestseller, color, stock_grams ≥ 0)</td></tr>
-        <tr><td><code>cart_db</code></td><td><b>cart_items</b>(user_id, slug, weight, qty 1-10) pk(user, slug, weight)</td></tr>
-        <tr><td><code>orders_db</code></td><td><b>orders</b>(id, order_number, user_id, status, subtotal, shipping, total, address jsonb, payment_*) · <b>order_items</b>(order_id fk, slug, weight, qty, unit_price, line_total)</td></tr>
-        <tr><td><code>payments_db</code></td><td><b>payments</b>(id, order_id, amount, method, status, reference)</td></tr>
-      </table></div>
-    </div>
-  </div>
-  <h3>Pricing rules (single source: <code>common/pricing.js</code>)</h3>
-  <p>Catalogue stores the 500 g price in whole rupees. 250 g = ×0.55, 1 kg = ×1.9 (rounded). Free shipping at ₹999, otherwise ₹79. Prices shown in the browser are for display only; cart and order totals are always recomputed on the server.</p>
-</section>
-
-<!-- 7 -->
-<section id="frontend">
-  <h2>Frontend</h2>
-  <p class="lead">React 18 + Vite, React Router, no UI framework, about 66 KB gzipped JavaScript.</p>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">Pages</h3>
-      <p><b>Home</b> (hero, Veg / Non-Veg category cards, bestsellers, promises, regions) · <b>Shop</b> (veg/non-veg toggle, region, spice, sort, search; state lives in the URL) · <b>Pickle page</b> (pack size, quantity, ingredients, shelf life, related) · <b>Cart</b> (free-shipping progress bar) · <b>Checkout</b> (address + UPI / card / COD) · <b>Orders</b> and <b>Order detail</b> (cancel) · <b>Login / Register</b> (one-click demo account).</p>
-      <h3>Notable choices</h3>
-      <ul class="check">
-        <li>Every jar is a generated SVG: pickle colour, cloth lid (green = veg, red = non-veg) and a Telugu label. Zero image assets or licensing issues.</li>
-        <li>Guests can fill a cart in <code>localStorage</code>; on login it is merged server-side via <code>POST /api/cart/merge</code>.</li>
-        <li>FSSAI-style veg / non-veg marks, spice meter in chillies, Telugu names in Noto Sans Telugu.</li>
-        <li>Responsive down to phone width; tested with headless Chrome screenshots.</li>
-      </ul>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Brand palette</h3>
-      <div class="swatches">
-        <span class="sw"><i style="background:#C62828"></i>Chilli red #C62828</span>
-        <span class="sw"><i style="background:#8E1414"></i>Deep red #8E1414</span>
-        <span class="sw"><i style="background:#2E7D32"></i>Banana-leaf green #2E7D32</span>
-        <span class="sw"><i style="background:#0F3D17"></i>Deep green #0F3D17</span>
-        <span class="sw"><i style="background:#E0A526"></i>Turmeric accent #E0A526</span>
-        <span class="sw"><i style="background:#FFF9F0"></i>Cream #FFF9F0</span>
-      </div>
-      <h3>Catalogue</h3>
-      <p><b>Veg (20):</b> Avakaya, Bellam Avakaya, Magaya, Gongura, Tomato, Nimmakaya, Usirikaya, Allam, Vellulli, Pandu Mirapakaya, Pachi Mirapakaya, Dosavakaya, Chintakaya, Kakarakaya, Cauliflower, Mixed Veg, Punjabi Aam ka Achaar, Gujarati Chundo, Kerala Naranga, Rajasthani Ker Sangri.</p>
-      <p><b>Non-veg (16):</b> Boneless Chicken, Chicken (bone-in), Natu Kodi, Gongura Chicken, Mutton, Gongura Mutton, Mutton Kheema, Prawn (Royyala), Gongura Prawns, Dry Prawn (Endu Royyalu), Fish (Korameenu), Crab (Peethala), Egg, Goan Prawn Balchão, Kerala Meen Achar, Coorg Pandi.</p>
-    </div>
-  </div>
-</section>
-
-<!-- 8 -->
-<section id="build">
-  <h2>Build &amp; container images</h2>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">One Dockerfile for six services</h3>
-<pre><code>docker build --build-arg SERVICE=catalog-service \
-  -t telugu-pickles/catalog-service projects/telugu-pickles/services</code></pre>
-      <ul class="check">
-        <li>Stage 1 <code>npm ci --omit=dev</code> from a committed lock file (reproducible).</li>
-        <li>Stage 2 copies only <code>node_modules</code>, <code>common/</code> and the chosen service.</li>
-        <li>Runs as the unprivileged <code>node</code> user; Docker <code>HEALTHCHECK</code> on <code>/health/live</code>.</li>
-        <li>Root filesystem can be mounted read-only on Kubernetes.</li>
-      </ul>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Frontend image</h3>
-      <ul class="check">
-        <li>Stage 1 <code>node:22-alpine</code> builds static assets with Vite.</li>
-        <li>Stage 2 <code>nginx:1.27-alpine</code>; <code>default.conf.template</code> gets <code>GATEWAY_URL</code> via envsubst at start, so the <b>same image</b> works in Compose and EKS.</li>
-        <li>Hashed assets are cached for 1 year, and <code>index.html</code> is never cached.</li>
-      </ul>
-    </div>
-  </div>
-  <div class="tbl"><table>
-    <tr><th>ECR repository (us-east-1)</th><th>Build context</th><th>Tag strategy</th></tr>
-    <tr><td><code>telugu-pickles/frontend</code></td><td><code>projects/telugu-pickles/frontend</code></td><td rowspan="7">Manual first push <code>1.0.0</code>; CI pushes the git SHA. Scan-on-push enabled; lifecycle policy keeps the last 15 images.</td></tr>
-    <tr><td><code>telugu-pickles/gateway</code></td><td rowspan="6"><code>projects/telugu-pickles/services</code> + <code>SERVICE</code> build-arg</td></tr>
-    <tr><td><code>telugu-pickles/auth-service</code></td></tr>
-    <tr><td><code>telugu-pickles/catalog-service</code></td></tr>
-    <tr><td><code>telugu-pickles/cart-service</code></td></tr>
-    <tr><td><code>telugu-pickles/order-service</code></td></tr>
-    <tr><td><code>telugu-pickles/payment-service</code></td></tr>
-  </table></div>
-</section>
-
-<!-- 9 -->
-<section id="local">
-  <h2>Run locally</h2>
-  <p class="lead">Docker Desktop is the only requirement.</p>
-<pre><code>cd projects/telugu-pickles
-docker compose up -d --build        <span class="c"># 10 containers</span>
-./scripts/smoke-test.sh             <span class="c"># 25 end-to-end checks through nginx → gateway → services</span></code></pre>
-  <div class="tbl"><table>
-    <tr><th>URL</th><th>What</th></tr>
-    <tr><td><a href="http://localhost:3000">http://localhost:3000</a></td><td>Store (demo login <code>demo@telugupickles.in</code> / <code>Pickle@123</code>)</td></tr>
-    <tr><td><a href="http://localhost:8080/api/health">http://localhost:8080/api/health</a></td><td>Gateway aggregated health</td></tr>
-    <tr><td><a href="http://localhost:9090">http://localhost:9090</a></td><td>Prometheus</td></tr>
-    <tr><td><a href="http://localhost:3001">http://localhost:3001</a></td><td>Grafana (admin / admin): "Telugu Pickles — Service Overview" is the home dashboard</td></tr>
-  </table></div>
-  <p>Only the frontend, gateway and monitoring ports are published. The microservices and Postgres stay on private Compose networks (<code>backend</code>, <code>frontend</code>), mirroring the cluster.</p>
-  <div class="callout"><b>Fault injection locally</b><code>PAYMENT_DECLINE_RATE=0.5 docker compose up -d payment-service</code> makes half of UPI/card payments fail. Watch the Grafana "Checkouts failed at payment" tile and the ERROR logs.</div>
-</section>
-
-<!-- 10 -->
-<section id="aws">
-  <h2>AWS infrastructure (Terraform)</h2>
-  <p class="lead"><code>projects/Infrastructure</code>: four modules, one <code>terraform apply</code>. Full plan verified: 26 resources to add after ECR.</p>
-  <figure>
-    <svg viewBox="0 0 1000 330" role="img" aria-label="AWS infrastructure diagram">
-      <rect x="10" y="10" width="980" height="310" rx="16" fill="none" stroke="#E0A526" stroke-width="2"/>
-      <text x="26" y="34" font-size="13" font-weight="700" fill="#8A5A00">AWS account · us-east-1</text>
-      <rect x="30" y="50" width="700" height="255" rx="14" fill="none" stroke="#1565C0" stroke-width="2" stroke-dasharray="7 5"/>
-      <text x="46" y="72" font-size="12" font-weight="700" fill="#1565C0">VPC telugu-pickles-vpc 10.1.0.0/16 · Internet Gateway</text>
-      <g font-size="11.5">
-        <rect x="50" y="88" width="210" height="200" rx="12" fill="#E3F0FC"/><text x="155" y="108" text-anchor="middle" font-weight="700" fill="#0D47A1">us-east-1a · 10.1.1.0/24</text>
-        <rect x="270" y="88" width="210" height="200" rx="12" fill="#E3F0FC"/><text x="375" y="108" text-anchor="middle" font-weight="700" fill="#0D47A1">us-east-1b · 10.1.2.0/24</text>
-        <rect x="490" y="88" width="220" height="200" rx="12" fill="#E3F0FC"/><text x="600" y="108" text-anchor="middle" font-weight="700" fill="#0D47A1">us-east-1c · 10.1.3.0/24</text>
-        <rect x="70" y="125" width="170" height="70" rx="10" fill="#2E7D32"/><text x="155" y="152" text-anchor="middle" fill="#fff" font-weight="700">worker node</text><text x="155" y="170" text-anchor="middle" fill="#DFF3E0">m7i-flex.large · 30 GiB</text>
-        <rect x="290" y="125" width="170" height="70" rx="10" fill="#2E7D32"/><text x="375" y="152" text-anchor="middle" fill="#fff" font-weight="700">worker node</text><text x="375" y="170" text-anchor="middle" fill="#DFF3E0">m7i-flex.large · 30 GiB</text>
-        <rect x="510" y="125" width="180" height="70" rx="10" fill="none" stroke="#2E7D32" stroke-dasharray="5 4"/><text x="600" y="155" text-anchor="middle" fill="#1B5E20" font-weight="700">scale-out slot</text><text x="600" y="172" text-anchor="middle" fill="#1B5E20">max 3 nodes</text>
-        <rect x="70" y="210" width="620" height="60" rx="10" fill="#FFF9F0" stroke="#C62828"/>
-        <text x="380" y="235" text-anchor="middle" fill="#8E1414" font-weight="700">Public load balancer for Service "frontend" (subnets tagged kubernetes.io/role/elb)</text>
-        <text x="380" y="255" text-anchor="middle" fill="#6E5D53">EBS gp3 volume for Postgres is created on demand by the EBS CSI driver (IRSA role)</text>
-      </g>
-      <g font-size="11.5">
-        <rect x="750" y="50" width="225" height="60" rx="12" fill="#5C0B0B"/><text x="862" y="75" text-anchor="middle" fill="#fff" font-weight="700">EKS control plane 1.34</text><text x="862" y="94" text-anchor="middle" fill="#FFD8D8">OIDC provider · managed node group</text>
-        <rect x="750" y="122" width="225" height="56" rx="12" fill="#8E1414"/><text x="862" y="146" text-anchor="middle" fill="#fff" font-weight="700">ECR × 7 repositories</text><text x="862" y="164" text-anchor="middle" fill="#FFD8D8">scan on push · keep 15</text>
-        <rect x="750" y="190" width="225" height="115" rx="12" fill="#0F3D17"/><text x="862" y="214" text-anchor="middle" fill="#fff" font-weight="700">Helm releases</text>
-        <text x="862" y="236" text-anchor="middle" fill="#DFF3E0">argo-cd 6.7.0 → ns argocd</text>
-        <text x="862" y="256" text-anchor="middle" fill="#DFF3E0">kube-prometheus-stack 56.21.0</text>
-        <text x="862" y="276" text-anchor="middle" fill="#DFF3E0">metrics-server 3.12.2</text>
-        <text x="862" y="296" text-anchor="middle" fill="#DFF3E0">EKS add-on: aws-ebs-csi-driver</text>
-      </g>
-    </svg>
-    <figcaption>Public subnets only (no NAT gateway) to keep demo cost low. Production would put nodes in private subnets behind NAT / VPC endpoints.</figcaption>
-  </figure>
-  <div class="tbl"><table>
-    <tr><th>Module</th><th>Creates</th><th>Notes / changes made for Telugu Pickles</th></tr>
-    <tr><td><code>vpc</code></td><td>VPC, IGW, 3 public subnets, route table</td><td>Renamed to <code>telugu-pickles-vpc</code>; subnets tagged for the cluster and ELB.</td></tr>
-    <tr><td><code>eks</code></td><td>Cluster + IAM roles, OIDC provider, node group, EBS CSI add-on with IRSA</td><td>Fixed: <code>capacity_type</code> and <code>disk_size</code> were never passed (nodes got 20 GiB instead of 30 GiB).</td></tr>
-    <tr><td><code>ecr</code></td><td>7 repositories</td><td>Added encryption, lifecycle policy (keep 15), <code>telugu-pickles/</code> prefix.</td></tr>
-    <tr><td><code>argocd</code></td><td>Namespaces, Argo CD, kube-prometheus-stack, metrics-server</td><td>Prometheus now discovers ServiceMonitors / rules in every namespace; Grafana sidecar searches ALL namespaces; metrics-server added for HPA.</td></tr>
-  </table></div>
-  <h3>Capacity sizing (why 2 nodes)</h3>
-  <p>m7i-flex.large supports at most <b>29 pods</b> (VPC CNI ENI limit). Expected pods: app 10 (frontend ×2, gateway ×2, catalog ×2, 4 others) + Postgres 1, Argo CD ≈ 7, monitoring ≈ 7, kube-system ≈ 11 (aws-node, kube-proxy, CoreDNS, EBS CSI, metrics-server) → <b>≈ 36</b>. One node would hit the "too many pods" error the earlier t3.medium cluster ran into, so desired = min = 2, max = 3.</p>
-  <h3>Approximate running cost (on-demand, us-east-1)</h3>
-  <div class="tbl"><table>
-    <tr><th>Item</th><th>≈ per hour</th></tr>
-    <tr><td>EKS control plane</td><td>$0.10</td></tr>
-    <tr><td>2 × m7i-flex.large</td><td>≈ $0.19</td></tr>
-    <tr><td>Load balancer + public IPv4 addresses</td><td>≈ $0.04</td></tr>
-    <tr><td>EBS (2 × 30 GiB + 10 GiB gp3), ECR storage</td><td>≈ $0.01</td></tr>
-    <tr><td><b>Total</b></td><td><b>≈ $0.35 / hour (≈ $8 / day)</b>. Run <code>terraform destroy</code> when not demoing.</td></tr>
-  </table></div>
-</section>
-
-<!-- 11 -->
-<section id="k8s">
-  <h2>Kubernetes design</h2>
-  <p class="lead"><code>gitops/</code> is a Kustomize base that renders 26 objects; Argo CD applies it.</p>
-  <div class="tbl"><table>
-    <tr><th>Concern</th><th>How it is handled</th></tr>
-    <tr><td>Images</td><td>Manifests use short names (<code>telugu-pickles/gateway</code>); <code>kustomization.yml → images:</code> maps them to the ECR URI and tag. CI changes only that block.</td></tr>
-    <tr><td>Config</td><td>ConfigMap <code>telugu-pickles-config</code> (service URLs, PGHOST, log level, chaos knobs). Secret <code>telugu-pickles-secrets</code> from <code>secretGenerator</code> (PGUSER, PGPASSWORD, JWT_SECRET).</td></tr>
-    <tr><td>Health</td><td><code>startupProbe</code> &amp; <code>livenessProbe</code> → <code>/health/live</code>; <code>readinessProbe</code> → <code>/health/ready</code> (checks the DB), so pods only receive traffic once their database is ready.</td></tr>
-    <tr><td>Rollouts</td><td>RollingUpdate, <code>maxUnavailable: 0</code>, <code>maxSurge: 1</code>; SIGTERM handled with graceful shutdown → zero-downtime deploys.</td></tr>
-    <tr><td>Resources</td><td>Requests 50m CPU / 96 Mi, memory limit 256 Mi per service (no CPU limit to avoid throttling); Postgres 100m / 256–512 Mi.</td></tr>
-    <tr><td>Scaling</td><td>HPA on gateway and catalog-service (2–4 replicas at 70 % CPU) using metrics-server.</td></tr>
-    <tr><td>Storage</td><td>Own <code>gp3</code> StorageClass (encrypted, <code>WaitForFirstConsumer</code>), 10 Gi PVC for Postgres; <code>PGDATA</code> sub-directory avoids <code>lost+found</code>.</td></tr>
-    <tr><td>Security context</td><td>Non-root UID 1000, read-only root FS, all capabilities dropped, no privilege escalation, seccomp RuntimeDefault, no service-account token mounted. Namespace enforces Pod Security "baseline".</td></tr>
-    <tr><td>Exposure</td><td>Only <code>Service/frontend</code> is <code>type: LoadBalancer</code>; everything else is ClusterIP.</td></tr>
-    <tr><td>Monitoring</td><td>One <code>ServiceMonitor</code> selects all Services labelled <code>metrics=enabled</code> on port <code>http</code>; <code>PrometheusRule</code> with 4 alerts; Grafana dashboard ConfigMap in <code>monitoring</code>.</td></tr>
-  </table></div>
-</section>
-
-<!-- 12 -->
-<section id="cicd">
-  <h2>CI/CD &amp; GitOps</h2>
-  <figure>
-    <svg viewBox="0 0 1000 200" role="img" aria-label="CI/CD pipeline diagram">
-      <defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5C0B0B"/></marker></defs>
-      <g font-size="12" text-anchor="middle">
-        <rect x="10" y="60" width="120" height="70" rx="12" fill="#FFF9F0" stroke="#8E1414" stroke-width="2"/><text x="70" y="90" font-weight="700" fill="#5C0B0B">git push</text><text x="70" y="108" fill="#6E5D53" font-size="10.5">projects/telugu-pickles/**</text>
-        <rect x="160" y="60" width="140" height="70" rx="12" fill="#2E7D32"/><text x="230" y="88" font-weight="700" fill="#fff">test</text><text x="230" y="106" fill="#DFF3E0" font-size="10.5">7 unit tests +</text><text x="230" y="120" fill="#DFF3E0" font-size="10.5">frontend build</text>
-        <rect x="330" y="60" width="160" height="70" rx="12" fill="#2E7D32"/><text x="410" y="88" font-weight="700" fill="#fff">build-and-push ×7</text><text x="410" y="106" fill="#DFF3E0" font-size="10.5">buildx · GHA cache</text><text x="410" y="120" fill="#DFF3E0" font-size="10.5">→ ECR :git-sha</text>
-        <rect x="520" y="60" width="160" height="70" rx="12" fill="#2E7D32"/><text x="600" y="88" font-weight="700" fill="#fff">update-manifests</text><text x="600" y="106" fill="#DFF3E0" font-size="10.5">kustomize edit set image</text><text x="600" y="120" fill="#DFF3E0" font-size="10.5">commit to main</text>
-        <rect x="710" y="60" width="130" height="70" rx="12" fill="#1565C0"/><text x="775" y="90" font-weight="700" fill="#fff">Argo CD</text><text x="775" y="108" fill="#DCEBFB" font-size="10.5">auto-sync · prune</text><text x="775" y="122" fill="#DCEBFB" font-size="10.5">self-heal</text>
-        <rect x="870" y="60" width="120" height="70" rx="12" fill="#C62828"/><text x="930" y="90" font-weight="700" fill="#fff">EKS</text><text x="930" y="108" fill="#FFE3E3" font-size="10.5">rolling update</text><text x="930" y="122" fill="#FFE3E3" font-size="10.5">zero downtime</text>
-      </g>
-      <g stroke="#5C0B0B" stroke-width="2"><path d="M130 95H156" marker-end="url(#pa)"/><path d="M300 95H326" marker-end="url(#pa)"/><path d="M490 95H516" marker-end="url(#pa)"/><path d="M680 95H706" marker-end="url(#pa)"/><path d="M840 95H866" marker-end="url(#pa)"/></g>
-      <path d="M600 130 C 600 180, 70 180, 70 134" stroke="#C62828" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>
-      <text x="335" y="182" font-size="11" fill="#C62828" text-anchor="middle">bot commit touches only gitops/ → path filter prevents a CI loop</text>
-    </svg>
-  </figure>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">GitHub Actions (<code>.github/workflows/ci.yml</code>)</h3>
-      <ul class="check">
-        <li>Path-filtered trigger + <code>workflow_dispatch</code>.</li>
-        <li>Supports <b>GitHub OIDC</b> (<code>AWS_ROLE_ARN</code>, no long-lived keys) or access-key secrets.</li>
-        <li>Immutable tags = commit SHA, so a deployment maps 1:1 to a commit.</li>
-        <li>Fixes the boutique bug where <code>sed</code> searched for the real account ID while manifests held a placeholder, so tags never changed.</li>
-      </ul>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Argo CD Application (created by Terraform, <code>modules/platform</code>)</h3>
-      <ul class="check">
-        <li>Watches <code>main</code> / <code>gitops/</code>; <code>automated: {prune, selfHeal}</code>.</li>
-        <li><code>ServerSideApply</code> for the large Grafana dashboard ConfigMap.</li>
-        <li>Retry with back-off; finalizer cleans up on delete.</li>
-        <li>Rollback = <code>git revert</code> of the bot commit (or Argo CD history).</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- 13 -->
-<section id="observability">
-  <h2>Observability</h2>
-  <div class="grid3">
-    <div class="card"><h3 style="margin-top:0">Metrics</h3>
-      <p><b>RED:</b> <code>http_requests_total</code>, <code>http_request_duration_seconds</code> (route templates, low cardinality), <code>http_requests_in_flight</code>.</p>
-      <p><b>Business:</b> <code>tp_orders_placed_total{status}</code>, <code>tp_order_value_rupees_total</code>, <code>tp_payments_total{method,result}</code>, <code>tp_dependency_errors_total{dependency}</code>.</p>
-      <p><b>Runtime:</b> Node.js heap, event-loop lag, CPU. Every series carries <code>app=&lt;service&gt;</code>.</p>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Logs</h3>
-      <p>One JSON object per line on stdout / stderr: <code>ts, level, service, msg, requestId, …</code>. On EKS, Fluent Bit ships them to CloudWatch log group <code>/eks/telugu-pickles/pods</code>, which is queryable with Logs Insights and readable by Kira.</p>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Dashboards &amp; alerts</h3>
-      <p>Grafana <b>"Telugu Pickles — Service Overview"</b> (16 panels: golden signals, business, runtime, with a service filter) is generated by <code>scripts/build-dashboard.js</code> for both Compose and EKS.</p>
-      <p>Alerts: <code>HighServerErrorRate</code> (&gt;5 %), <code>CheckoutPaymentFailures</code>, <code>SlowRequestsP95</code> (&gt;1 s), <code>PodRestartingOften</code>.</p>
-    </div>
-  </div>
-</section>
-
-<!-- 14 -->
-<section id="aiops">
-  <h2>AIOps with Amazon Bedrock ("Kira")</h2>
-  <p class="lead"><code>projects/aiops-assistant</code>: Streamlit chat → Bedrock Agent → three Lambda tools. Updated for Telugu Pickles.</p>
-  <div class="tbl"><table>
-    <tr><th>Tool (Lambda)</th><th>Reads</th><th>Changes made</th></tr>
-    <tr><td><code>fetch_logs</code></td><td>CloudWatch Logs <code>/eks/telugu-pickles/pods</code></td><td>New default log group; schema explains the JSON fields and tracing by <code>requestId</code>; one region (us-east-1).</td></tr>
-    <tr><td><code>fetch_metrics</code></td><td>Prometheus HTTP API</td><td><b>Schema rewritten</b>: it previously described CloudWatch metrics, which the Lambda never queried. Now an <code>enum</code> of 12 vetted PromQL keys including <code>error_rate_percent</code>, <code>latency_p95_seconds</code>, <code>dependency_errors</code>, <code>payments_by_result</code>. Raw PromQL from the model is no longer accepted.</td></tr>
-    <tr><td><code>fetch_service_health</code></td><td>EKS API + kube-state-metrics</td><td>Defaults <code>telugu-pickles-eks</code> / <code>telugu-pickles</code>; config via env vars (<code>CLUSTER_NAME</code>, <code>PROMETHEUS_URL</code>).</td></tr>
-  </table></div>
-  <h3>Demo scenarios (flip a value in <code>gitops/k8s/platform/config.yml</code>, commit, let Argo CD sync)</h3>
-  <div class="tbl"><table>
-    <tr><th>Scenario</th><th>Knob</th><th>What Kira should find</th></tr>
-    <tr><td>"Why are checkouts failing?"</td><td><code>PAYMENT_DECLINE_RATE: "0.5"</code></td><td>ERROR "payment declined by bank" logs, <code>payments_by_result</code> DECLINED spike, <code>orders_by_status</code> PAYMENT_FAILED; root cause is payment-service / bank.</td></tr>
-    <tr><td>"Why is the site slow?"</td><td><code>PAYMENT_LATENCY_MS: "4000"</code></td><td>order-service p95 latency up while gateway/catalog are normal; slowness isolated to payment calls.</td></tr>
-    <tr><td>"We see 503s"</td><td><code>CHAOS_ERROR_RATE: "0.3"</code></td><td><code>error_rate_percent</code> ≈ 30 % across services, "chaos: injected failure" logs, alert <code>HighServerErrorRate</code>.</td></tr>
-    <tr><td>"Is anything down?"</td><td><code>kubectl scale deploy/cart-service --replicas=0</code></td><td><code>fetch_service_health</code> shows cart-service scaled to zero; gateway "upstream unavailable" logs. (Argo CD self-heal restores it, which is a nice GitOps talking point.)</td></tr>
-  </table></div>
-  <div class="callout r"><b>Before the AIOps demo</b>Do not expose Prometheus with a public LoadBalancer as the original README suggested; it has no authentication. Prefer an <b>internal</b> NLB plus VPC-attached Lambdas, or Amazon Managed Service for Prometheus. Also confirm the agent's foundation model (<code>deploy.sh</code> uses <code>qwen.qwen3-32b-v1:0</code>) is enabled for Bedrock Agents in us-east-1; a Claude model is a good alternative.</div>
-</section>
-
-<!-- 15 -->
-<section id="security">
-  <h2>Security</h2>
-  <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">In place</h3>
-      <ul class="check">
-        <li>bcrypt password hashes; signed, expiring JWTs; same error for unknown email and wrong password.</li>
-        <li>Server-side pricing &amp; stock checks; parameterised SQL everywhere.</li>
-        <li>Internal APIs (stock, payments) unreachable from the internet.</li>
-        <li>Login / register rate limiting; security headers; request size limit (100 KB).</li>
-        <li>Non-root, read-only, capability-free containers; Pod Security admission.</li>
-        <li>ECR scan on push; encrypted EBS and ECR.</li>
-        <li><code>JWT_SECRET</code> required when <code>NODE_ENV=production</code>.</li>
-      </ul>
-    </div>
-    <div class="card"><h3 style="margin-top:0">Known demo trade-offs → production fixes</h3>
-      <div class="tbl" style="margin:0"><table>
-        <tr><th>Trade-off</th><th>Fix</th></tr>
-        <tr><td>Secrets in <code>kustomization.yml</code></td><td>AWS Secrets Manager + External Secrets Operator (IRSA)</td></tr>
-        <tr><td>Public subnets, public EKS endpoint</td><td>Private node subnets + NAT / endpoints; restrict <code>public_access_cidrs</code></td></tr>
-        <tr><td>HTTP only</td><td>AWS Load Balancer Controller + ALB Ingress with ACM certificate</td></tr>
-        <tr><td>No NetworkPolicies enforced</td><td>Enable VPC CNI network policy; allow only gateway → services, services → postgres</td></tr>
-        <tr><td>In-cluster Postgres</td><td>Amazon RDS / Aurora PostgreSQL (change <code>PGHOST</code> only)</td></tr>
-        <tr><td>JWT in localStorage</td><td>HttpOnly cookie + refresh token rotation</td></tr>
-      </table></div>
-    </div>
-  </div>
-</section>
-
-<!-- 16 -->
-<section id="highlights">
-  <h2>Highlights</h2>
-  <div class="grid3">
-    <div class="card"><h3 style="margin-top:0">🫙 Real domain</h3><p>36 regional pickles with Telugu names, pack sizes, spice levels, stock and a working checkout.</p></div>
-    <div class="card"><h3 style="margin-top:0">🔁 Build once, run anywhere</h3><p>Same 7 images locally and on EKS; relative <code>/api</code> + nginx templating; config only via env.</p></div>
-    <div class="card"><h3 style="margin-top:0">🧱 Zero-touch data</h3><p>Services create their own DBs, migrate under an advisory lock, and seed idempotently.</p></div>
-    <div class="card"><h3 style="margin-top:0">↩️ Saga with compensation</h3><p>Checkout never leaks stock when payment fails, and this was proven with an injected failure.</p></div>
-    <div class="card"><h3 style="margin-top:0">🔍 Traceable</h3><p>JSON logs + request IDs across hops + RED and business metrics + ready-made dashboard and alerts.</p></div>
-    <div class="card"><h3 style="margin-top:0">🧪 Built-in chaos</h3><p>Four environment knobs create realistic incidents for the Bedrock agent to diagnose.</p></div>
-    <div class="card"><h3 style="margin-top:0">🚀 Loop-safe GitOps</h3><p>Kustomize image overrides + path-filtered CI + Argo CD auto-sync / self-heal.</p></div>
-    <div class="card"><h3 style="margin-top:0">🛡️ Hardened pods</h3><p>Non-root, read-only FS, dropped capabilities, probes, rolling updates with no downtime.</p></div>
-    <div class="card"><h3 style="margin-top:0">✅ Tested</h3><p>7 unit tests in CI and a 25-step smoke test reusable against the EKS URL.</p></div>
-  </div>
-  <h3>Boutique issues fixed by the redesign</h3>
-  <div class="tbl"><table>
-    <tr><th>Boutique problem</th><th>Telugu Pickles</th></tr>
-    <tr><td>CI <code>sed</code> never matched the <code>&lt;AWS_ACCOUNT_ID&gt;</code> placeholder, so tags never updated</td><td>Kustomize <code>images:</code> + <code>kustomize edit set image</code></td></tr>
-    <tr><td><code>order-service</code> Service port 3002 vs container 3004</td><td>Named port <code>http</code> everywhere, <code>targetPort: http</code></td></tr>
-    <tr><td>Gateway had no route to order-service; env name typo in Compose</td><td>Explicit route table, identical env names in Compose and ConfigMap</td></tr>
-    <tr><td><code>/categories</code> shadowed by <code>/:id</code></td><td>Static routes first, covered by the smoke test</td></tr>
-    <tr><td>"Token" was just the user ID</td><td>Signed JWT verified by every service</td></tr>
-    <tr><td>Only gateway was scraped</td><td>One ServiceMonitor for all services</td></tr>
-    <tr><td>DB init skipped on fresh EBS; manual restore job</td><td>Self-bootstrapping databases</td></tr>
-    <tr><td>Frontend API URL baked at build time</td><td>Same-origin <code>/api</code> via nginx</td></tr>
-    <tr><td>Terraform ignored <code>disk_size</code> / <code>capacity_type</code>; 1 node too small</td><td>Variables wired; 2 nodes sized by pod math</td></tr>
-    <tr><td>AIOps metrics schema described CloudWatch but Lambda queried Prometheus</td><td>Schema with an enum of supported Prometheus metrics</td></tr>
-  </table></div>
-</section>
-
-<!-- 17 -->
-<section id="runbook">
-  <h2>Runbook: zero to demo</h2>
-  <p>Full student walkthrough with screenshots-worth of detail: <code>docs/CICD-EKS-GUIDE.md</code>. Local only: <code>projects/telugu-pickles/LOCAL-SETUP.md</code>.</p>
-  <ol class="steps">
-    <li><b>Run locally</b>
-<pre><code>cd projects/telugu-pickles
-docker compose up -d --build &amp;&amp; ./scripts/smoke-test.sh      <span class="c"># 25 passed</span></code></pre></li>
-    <li><b>Bootstrap (laptop, once)</b>: S3 state bucket + GitHub OIDC role (+ Route 53 zone when a domain is set)
-<pre><code>cd projects/Infrastructure/bootstrap
-terraform init &amp;&amp; terraform apply
-terraform output github_actions_role_arn</code></pre></li>
-    <li><b>GitHub</b>: Settings → Secrets and variables → Actions → secret <code>AWS_ROLE_ARN</code> = the role ARN. That is the only secret.</li>
-    <li><b>git push</b> → <em>Infrastructure</em> workflow: Gitleaks + Trivy → <code>terraform plan</code> → <code>terraform apply</code>
-      (VPC, EKS 1.35, ECR, Argo CD, kube-prometheus-stack, AWS Load Balancer Controller, Fluent Bit → CloudWatch, app Secret, Argo CD Application) ≈ 30 min.</li>
-    <li><b>App CI</b> (runs on app changes, or <em>Run workflow</em>): tests → build 7 images → Trivy image gate → push <code>:&lt;git-sha&gt;</code> to ECR → bot commits tags to <code>gitops/kustomization.yml</code>.</li>
-    <li><b>Argo CD</b> syncs within ~60 s:
-<pre><code>aws eks update-kubeconfig --name telugu-pickles-eks --region us-east-1
-kubectl -n argocd get application telugu-pickles          <span class="c"># Synced / Healthy</span>
-kubectl -n telugu-pickles get ingress frontend            <span class="c"># ADDRESS = shop URL (http://)</span>
-kubectl -n argocd port-forward svc/argocd-server 8081:80
-kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3001:80</code></pre></li>
-    <li><b>CloudWatch</b>: <code>aws logs tail /eks/telugu-pickles/pods --follow</code>; alarm <code>telugu-pickles-error-spike</code> on metric <code>TeluguPickles/AppErrorCount</code>.</li>
-    <li><b>Domain (optional)</b>: set <code>domain_name</code> in bootstrap → GoDaddy nameservers → set <code>domain_name</code> in <code>terraform.tfvars</code> → push → https://shop./argocd./grafana.&lt;domain&gt; (ACM + ExternalDNS).</li>
-    <li><b>AIOps</b>: <code>setup-iam.sh</code> → create 3 Lambdas → set <code>PROMETHEUS_URL</code> → <code>deploy.sh</code> → <code>streamlit run app.py</code>, then run the scenarios in section 14.</li>
-    <li><b>Tear down</b>: Actions → Infrastructure → Run workflow → <code>destroy</code> (confirm "destroy"). It runs <code>scripts/pre-destroy.sh</code> first so the ALB and EBS volume are not orphaned.</li>
-  </ol>
-</section>
-
-<!-- 18 -->
-<section id="status">
-  <h2>Status &amp; next steps</h2>
-  <div class="tbl"><table>
-    <tr><th>Milestone</th><th>Status</th></tr>
-    <tr><td>Telugu Pickles app (6 services + React frontend)</td><td><span class="pill g">done</span> unit tests 7/7, smoke test 25/25, browser click-through of all pages, payment-failure compensation verified</td></tr>
-    <tr><td>Local Docker Compose + Prometheus + Grafana</td><td><span class="pill g">running</span></td></tr>
-    <tr><td>ECR repositories (Terraform)</td><td><span class="pill g">created</span> empty; re-run <code>push-to-ecr.sh 1.0.0</code> before deploying</td></tr>
-    <tr><td>Kubernetes manifests, Kustomize, Argo CD Application, CI workflow</td><td><span class="pill g">written &amp; rendered</span></td></tr>
-    <tr><td>EKS platform (Terraform)</td><td><span class="pill b">plan verified</span> 26 resources; apply after review (cost ≈ $0.35/h)</td></tr>
-    <tr><td>GitHub repository + Argo CD sync</td><td><span class="pill r">needs repo URL</span></td></tr>
-    <tr><td>Bedrock agent demo</td><td><span class="pill b">code updated</span> deploy after EKS</td></tr>
-  </table></div>
-</section>
-
-<!-- 19 -->
-<section id="api">
-  <h2>API reference (public, via <code>/api</code>)</h2>
-  <div class="tbl"><table>
-    <tr><th>Method &amp; path</th><th>Auth</th><th>Description</th></tr>
-    <tr><td><code>GET /api/health</code></td><td>—</td><td>Aggregated readiness of all upstream services</td></tr>
-    <tr><td><code>POST /api/auth/register</code></td><td>—</td><td><code>{name, email, phone?, password}</code> → <code>{token, user}</code></td></tr>
-    <tr><td><code>POST /api/auth/login</code></td><td>—</td><td><code>{email, password}</code> → <code>{token, user}</code> (rate limited)</td></tr>
-    <tr><td><code>GET|PUT /api/auth/me</code></td><td>JWT</td><td>Profile</td></tr>
-    <tr><td><code>GET /api/products</code></td><td>—</td><td>Query: <code>category</code>, <code>q</code>, <code>region</code>, <code>maxSpice</code>, <code>bestseller</code>, <code>sort</code>, <code>slugs</code></td></tr>
-    <tr><td><code>GET /api/products/:slug</code></td><td>—</td><td>Pickle detail + pack sizes</td></tr>
-    <tr><td><code>GET /api/categories</code> · <code>GET /api/regions</code></td><td>—</td><td>Facets with counts</td></tr>
-    <tr><td><code>GET /api/cart</code></td><td>JWT</td><td>Cart with server-side prices, shipping and totals</td></tr>
-    <tr><td><code>POST /api/cart/items</code></td><td>JWT</td><td>Add <code>{slug, weight, qty}</code> (increments)</td></tr>
-    <tr><td><code>PUT /api/cart/items</code></td><td>JWT</td><td>Set quantity (0 removes)</td></tr>
-    <tr><td><code>POST /api/cart/merge</code> · <code>DELETE /api/cart</code></td><td>JWT</td><td>Merge guest cart · clear cart</td></tr>
-    <tr><td><code>POST /api/orders</code></td><td>JWT</td><td><code>{address, paymentMethod: UPI|CARD|COD}</code> → 201 / 402 / 409 / 503</td></tr>
-    <tr><td><code>GET /api/orders</code> · <code>GET /api/orders/:id</code></td><td>JWT</td><td>Order history · detail (owner only)</td></tr>
-    <tr><td><code>POST /api/orders/:id/cancel</code></td><td>JWT</td><td>Cancel a confirmed order and release stock</td></tr>
-  </table></div>
-  <p style="color:var(--muted);font-size:.85rem">Internal only (cluster network): <code>POST /internal/stock/reserve|release</code> on catalog-service, <code>POST /internal/payments</code> on payment-service.</p>
-</section>
-
-<footer>Telugu Pickles — DevOps + AIOps capstone · Generated alongside the code in <code>projects/telugu-pickles</code>, <code>gitops/</code> and <code>projects/Infrastructure</code>.</footer>
+  <p class="note">The Terraform stack and GitHub workflows are templates. Choose a region and VM SKU
+     available in your subscription, configure the GitHub variables, review the plan, and explicitly
+     approve provisioning. No Azure resource deployment has been run by this migration.</p>
 </main>
-</div>
-<script>
-(function(){
-  var root=document.documentElement,btn=document.getElementById('theme');
-  try{var t=localStorage.getItem('tp-doc-theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
-  btn.addEventListener('click',function(){
-    var dark=root.getAttribute('data-theme')==='dark'||(!root.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
-    var next=dark?'light':'dark';root.setAttribute('data-theme',next);
-    try{localStorage.setItem('tp-doc-theme',next);}catch(e){}
-  });
-})();
-</script>
 </body>
 </html>

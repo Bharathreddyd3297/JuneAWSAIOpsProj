@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end smoke test through the FRONTEND (nginx -> gateway -> services).
 #   ./scripts/smoke-test.sh                       # local docker compose
-#   ./scripts/smoke-test.sh http://<elb-host>     # EKS
+#   ./scripts/smoke-test.sh http://<ingress-address>  # AKS
 set -uo pipefail
 BASE="${1:-http://localhost:3000}"
 PASS=0; FAIL=0

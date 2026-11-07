@@ -1,0 +1,4 @@
+azure-functions>=1.21,<2
+azure-identity>=1.19,<2
+azure-monitor-query>=1.4,<2
+openai>=1.61,<3

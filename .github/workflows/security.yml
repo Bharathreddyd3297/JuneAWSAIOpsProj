@@ -4,14 +4,14 @@
 #   Trivy    : Kubernetes / Terraform / Dockerfile misconfigurations           -> report only
 # Findings also appear under the repo's  Security -> Code scanning  tab (SARIF).
 #
-# Runs on its own (PRs, pushes to main, weekly) and is called by the App CI and
+# Runs on its own (PRs, pushes to azure-migration, weekly) and is called by the App CI and
 # Infrastructure workflows as their first gate. Needs NO secrets.
 name: Security Scan
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [azure-migration]
     paths-ignore:
       - "gitops/kustomization.yml" # image-tag bumps by the CI bot
   schedule:
@@ -27,8 +27,7 @@ env:
   GITLEAKS_VERSION: "8.30.1"
   # Pinned by digest: a re-pushed tag cannot change what runs here
   TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
-  # Mirror on ECR Public avoids GHCR rate limits ("TOOMANYREQUESTS") on shared runners
-  TRIVY_DB: public.ecr.aws/aquasecurity/trivy-db:2
+  TRIVY_DB: ghcr.io/aquasecurity/trivy-db:2
 
 jobs:
   gitleaks:

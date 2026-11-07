@@ -1,4 +1,4 @@
-"""Deployment agent tools — Argo CD, Argo Rollouts and pod health (read-only Kubernetes API)."""
+"""Read-only AKS deployment tools for Argo CD, Argo Rollouts, pods, and events."""
 from datetime import datetime, timedelta, timezone
 
 import k8s
@@ -127,4 +127,3 @@ def recent_events(minutes: int = 30, warnings_only: bool = True):
                     "message": e.get("message"), "count": e.get("count")})
     out.sort(key=lambda x: x["time"] or "", reverse=True)
     return {"minutes": minutes, "events": out[:40]}
-

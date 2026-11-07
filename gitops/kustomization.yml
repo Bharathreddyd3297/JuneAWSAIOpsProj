@@ -1,7 +1,7 @@
-# Telugu Pickles — everything ArgoCD deploys to EKS.
+# Telugu Pickles — application resources deployed by Argo CD to AKS.
 #   Preview:  kubectl kustomize gitops/
-#   Deployed by Argo CD (Application created by Terraform: projects/Infrastructure/modules/platform).
-#   Namespace "telugu-pickles" + Secret "telugu-pickles-secrets" are created by Terraform, not here.
+#   Deployed by Argo CD after scripts/bootstrap-aks.ps1 installs it in AKS.
+#   The app namespace and Kubernetes secret are initialized by that script.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -29,26 +29,26 @@ configMapGenerator:
         grafana_dashboard: "1"
 generatorOptions:
   disableNameSuffixHash: true
-# App CI rewrites newName/newTag here after pushing to ECR (.github/workflows/ci.yml, "deploy" job)
+# App CI rewrites newName/newTag after pushing to ACR (.github/workflows/ci.yml, "deploy" job).
 images:
   - name: telugu-pickles/frontend
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/frontend
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/frontend
+    newTag: latest
   - name: telugu-pickles/gateway
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/gateway
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/gateway
+    newTag: latest
   - name: telugu-pickles/auth-service
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/auth-service
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/auth-service
+    newTag: latest
   - name: telugu-pickles/catalog-service
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/catalog-service
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/catalog-service
+    newTag: latest
   - name: telugu-pickles/cart-service
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/cart-service
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/cart-service
+    newTag: latest
   - name: telugu-pickles/order-service
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/order-service
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/order-service
+    newTag: latest
   - name: telugu-pickles/payment-service
-    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/telugu-pickles/payment-service
-    newTag: "706bba04d355f8da18cbe348610f789a50dcdfe3"
+    newName: YOUR_ACR_NAME.azurecr.io/telugu-pickles/payment-service
+    newTag: latest
