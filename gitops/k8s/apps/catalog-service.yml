@@ -79,6 +79,8 @@ spec:
               value: "4002"
             - name: DB_NAME
               value: catalog_db
+            - name: CHAOS_ERROR_RATE
+              value: "0.5"
           resources:
             requests:
               cpu: 50m
