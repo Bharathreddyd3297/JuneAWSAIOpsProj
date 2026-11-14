@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiops-assistant
+  namespace: telugu-pickles
+  labels:
+    app: aiops-assistant
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aiops-assistant
+  template:
+    metadata:
+      labels:
+        app: aiops-assistant
+        app.kubernetes.io/part-of: telugu-pickles
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: aiops-assistant
+      containers:
+        - name: api
+          image: telugu-pickles/aiops-assistant
+          envFrom:
+            - configMapRef:
+                name: aiops-assistant-config
+            - secretRef:
+                name: aiops-assistant-api
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiops-assistant
+  namespace: telugu-pickles
+  labels:
+    app: aiops-assistant
+    app.kubernetes.io/part-of: telugu-pickles
+spec:
+  selector:
+    app: aiops-assistant
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

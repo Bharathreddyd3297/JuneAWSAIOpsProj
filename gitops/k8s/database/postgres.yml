@@ -1,6 +1,6 @@
 # Single PostgreSQL 16 instance; each microservice creates and owns its own
 # database inside it at startup (database-per-service, no init scripts needed).
-# Production upgrade path: Amazon RDS for PostgreSQL / Aurora (just change PGHOST).
+# Production upgrade path: Azure Database for PostgreSQL (just change PGHOST).
 apiVersion: v1
 kind: Service
 metadata:
@@ -48,7 +48,7 @@ spec:
               valueFrom: { secretKeyRef: { name: telugu-pickles-secrets, key: PGUSER } }
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: telugu-pickles-secrets, key: PGPASSWORD } }
-            # sub-directory avoids the "lost+found" problem on fresh EBS volumes
+            # sub-directory avoids the "lost+found" problem on fresh Azure Disk volumes
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:
@@ -71,7 +71,7 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: gp3
+        storageClassName: managed-csi
         resources:
           requests:
             storage: 10Gi

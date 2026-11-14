@@ -36,7 +36,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: order-service
-          image: telugu-pickles/order-service   # real ECR URI + tag is set in kustomization.yml (images:)
+          image: telugu-pickles/order-service   # real ACR URI + tag is set by Azure CI
           ports:
             - name: http
               containerPort: 4004

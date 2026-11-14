@@ -22,6 +22,8 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
+*.tfvars
+!*.tfvars.example
 
 # Kubernetes
 *.kubeconfig

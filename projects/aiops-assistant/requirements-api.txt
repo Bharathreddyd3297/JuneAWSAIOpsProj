@@ -1,0 +1,5 @@
+azure-identity>=1.17,<2
+azure-monitor-query>=2,<3
+fastapi>=0.115,<1
+openai>=1.55,<3
+uvicorn>=0.32,<1

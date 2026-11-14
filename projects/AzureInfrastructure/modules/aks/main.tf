@@ -48,6 +48,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     max_count            = var.node_max_count
     os_disk_size_gb      = 64
     type                 = "VirtualMachineScaleSets"
+
+    # Keep one temporary surge node during upgrades. With the three-node
+    # maximum this remains inside the subscription's 10-vCPU regional quota.
+    upgrade_settings {
+      max_surge = "10%"
+    }
   }
 
   azure_active_directory_role_based_access_control {

@@ -1,16 +1,16 @@
-# Reference Docs
+# Azure reference
 
-Short, factual explanations of each moving part. Use them as reference. For the step-by-step walkthrough, follow [../CICD-EKS-GUIDE.md](../CICD-EKS-GUIDE.md).
-
-| Doc | Answers |
+| Document | Purpose |
 |---|---|
-| [PIPELINES.md](PIPELINES.md) | What each GitHub Actions workflow does, when it runs, which secrets it needs, and what can fail |
-| [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Every AWS and Kubernetes resource Terraform creates, why, and what it costs |
-| [ARGOCD.md](ARGOCD.md) | What Argo CD is, how it deploys this app, and how to operate it |
-| [PROGRESSIVE-DELIVERY.md](PROGRESSIVE-DELIVERY.md) | Blue-green (frontend) and canary (catalog-service) with Argo Rollouts, plus a demo script that includes an automatic rollback |
+| [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Terraform modules and Azure resources |
+| [PIPELINES.md](PIPELINES.md) | GitHub Actions, OIDC, build, scan, and deployment flow |
+| [ARGOCD.md](ARGOCD.md) | GitOps reconciliation on AKS |
+| [PROGRESSIVE-DELIVERY.md](PROGRESSIVE-DELIVERY.md) | Frontend blue-green and catalog canary operation |
+| [../AZURE-SERVICE-MAP.md](../AZURE-SERVICE-MAP.md) | Complete service and runtime-flow inventory |
 
-```
- git push ──► GitHub Actions ──► AWS (Terraform)        PIPELINES.md + INFRASTRUCTURE.md
-                    │
-                    └──► ECR images + gitops/ tag bump ──► Argo CD ──► EKS pods        ARGOCD.md
+```text
+GitHub Actions -> ACR -> GitOps tag commit -> Argo CD -> AKS
+                                                   |-> Azure Monitor / Log Analytics
+                                                   |-> Prometheus / Grafana
+                                                   `-> Azure OpenAI AIOps
 ```

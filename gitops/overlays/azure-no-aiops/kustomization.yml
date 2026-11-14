@@ -1,0 +1,41 @@
+# Azure/AKS deployment without the optional AIOps assistant.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../k8s
+
+patches:
+  # Start healthy even if the shared demo manifest is exercising a failed canary.
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+      name: catalog-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: "0"
+
+# Azure CI rewrites these names and tags after pushing to ACR.
+images:
+  - name: telugu-pickles/frontend
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/frontend
+    newTag: bootstrap
+  - name: telugu-pickles/gateway
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/gateway
+    newTag: bootstrap
+  - name: telugu-pickles/auth-service
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/auth-service
+    newTag: bootstrap
+  - name: telugu-pickles/catalog-service
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/catalog-service
+    newTag: bootstrap
+  - name: telugu-pickles/cart-service
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/cart-service
+    newTag: bootstrap
+  - name: telugu-pickles/order-service
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/order-service
+    newTag: bootstrap
+  - name: telugu-pickles/payment-service
+    newName: CHANGE-ME.azurecr.io/telugu-pickles/payment-service
+    newTag: bootstrap

@@ -1,28 +1,24 @@
 """
-AIOps Assistant — Streamlit chat UI for Dude.
-Dude is a multi-agent AIOps assistant running in AWS Lambda (projects/aiops-assistant/lambda/kira.py):
-a supervisor model delegates to logs, metrics and deployment agents via the Bedrock Converse API.
+AIOps Assistant — Streamlit chat UI for Dude on Microsoft Azure.
+The multi-agent API runs in AKS and uses Azure OpenAI, Log Analytics, Prometheus, and Kubernetes.
 
-Run (the AWS CLI must be logged in to the account where Terraform created the Lambda):
+Run after forwarding the AKS service to localhost:8000:
     pip install -r requirements.txt
     streamlit run app.py
 """
 
-import json
 import os
 import uuid
 
-import boto3
+import requests
 import streamlit as st
-from botocore.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # --- Config ---
-# AWS credentials come from your normal AWS CLI login (aws configure / SSO). No keys in files.
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-KIRA_FUNCTION = os.getenv("KIRA_FUNCTION", "telugu-pickles-kira")
+AIOPS_URL = os.getenv("AIOPS_URL", "http://localhost:8000").rstrip("/")
+AIOPS_TOKEN = os.getenv("AIOPS_TOKEN", "")
 
 
 # --- Page Config ---
@@ -158,37 +154,30 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
 
-# --- Lambda client ---
-@st.cache_resource
-def get_lambda_client():
-    # an investigation with three specialists can take up to ~2 minutes
-    return boto3.client("lambda", region_name=AWS_REGION,
-                        config=Config(read_timeout=310, retries={"max_attempts": 0}))
-
-
 @st.cache_data(ttl=60, show_spinner=False)
 def kira_status():
-    """Returns (ok, detail): is the assistant Lambda there, and which models does it use?"""
+    """Returns whether the AKS AIOps API is reachable and its Azure model deployment."""
     try:
-        cfg = get_lambda_client().get_function_configuration(FunctionName=KIRA_FUNCTION)
-        env = cfg.get("Environment", {}).get("Variables", {})
-        return True, f"{env.get('SUPERVISOR_MODEL', '?')} + {env.get('SPECIALIST_MODEL', '?')}"
+        response = requests.get(f"{AIOPS_URL}/healthz", timeout=10)
+        response.raise_for_status()
+        status = response.json()
+        return True, f"{status.get('supervisor', '?')} + {status.get('specialist', '?')}"
     except Exception as exc:
         return False, str(exc)
 
 
 def ask_kira(prompt: str) -> dict:
-    """Invoke the assistant Lambda with the question and the earlier chat turns."""
+    """Call the Azure-native assistant API with the question and earlier chat turns."""
     history = [{"role": m["role"], "text": m["content"]} for m in st.session_state.messages[:-1][-10:]]
     try:
-        resp = get_lambda_client().invoke(
-            FunctionName=KIRA_FUNCTION,
-            Payload=json.dumps({"question": prompt, "history": history}).encode(),
+        response = requests.post(
+            f"{AIOPS_URL}/ask",
+            json={"question": prompt, "history": history},
+            headers={"Authorization": f"Bearer {AIOPS_TOKEN}"},
+            timeout=310,
         )
-        result = json.loads(resp["Payload"].read())
-        if resp.get("FunctionError"):
-            return {"answer": f"Dude failed: {result.get('errorMessage', result)}", "steps": []}
-        return result
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
         return {"answer": f"Error: {e}", "steps": []}
 
@@ -211,10 +200,10 @@ if not config_ok:
         <span style="color: #ef4444;">NOT CONFIGURED</span>
     </div>
     """, unsafe_allow_html=True)
-    st.error(f"Lambda `{KIRA_FUNCTION}` not reachable in {AWS_REGION}: {status_detail}")
-    st.markdown("1. Check the AWS CLI works: `aws sts get-caller-identity`\n"
-                "2. Create it: **Actions -> Infrastructure -> apply** (with `aiops_enabled = true`)\n"
-                "3. Wrong region? Set `AWS_REGION=us-east-1` in `.env`")
+    st.error(f"AKS AIOps API `{AIOPS_URL}` is not reachable: {status_detail}")
+    st.markdown("1. Deploy with **Actions -> Azure Infrastructure** and **Azure App CI**\n"
+                "2. Run `kubectl -n telugu-pickles port-forward service/aiops-assistant 8000:8000`\n"
+                "3. Keep `AIOPS_URL=http://localhost:8000` in `.env`")
     st.stop()
 
 
@@ -226,7 +215,7 @@ st.markdown(f"""
     <span style="color: #2a3040;">|</span>
     <span style="color: #5a6270;">Session: {st.session_state.session_id[:8]}</span>
     <span style="color: #2a3040;">|</span>
-    <span style="color: #5a6270;">Region: {AWS_REGION}</span>
+    <span style="color: #5a6270;">Cloud: Microsoft Azure</span>
     <span style="color: #2a3040;">|</span>
     <span style="color: #5a6270;">Models: {status_detail}</span>
 </div>
@@ -300,10 +289,10 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Dude's team (Bedrock Converse multi-agent):**")
-    st.markdown("- 📋 **logs-agent**: CloudWatch Logs Insights")
-    st.markdown("- 📊 **metrics-agent**: Prometheus (RED, per-pod, orders, alerts)")
-    st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, pods, events")
+    st.markdown("**Dude's team (Azure OpenAI multi-agent):**")
+    st.markdown("- 📋 **logs-agent**: Azure Monitor / Log Analytics")
+    st.markdown("- 📊 **metrics-agent**: Prometheus (RED, orders, payments, alerts)")
+    st.markdown("- 🚦 **deployment-agent**: Argo CD, Rollouts, and pod status")
 
     st.markdown("---")
     st.markdown("**Sample Questions:**")
@@ -313,7 +302,7 @@ with st.sidebar:
     - Which pods return 5xx errors right now?
     - Are payments failing? Since when?
     - Did errors start after the last deployment?
-    - Which pod uses the most memory?
+    - Which pods are not ready or restarting?
     """)
 
     st.markdown("---")

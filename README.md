@@ -1,182 +1,84 @@
-# DevOps + AIOps Series
+# DevOps + AIOps on Microsoft Azure
 
-> A full end-to-end DevOps project with AIOps integration — so you can connect the dots between how AI is helping automate DevOps tasks today.
+Telugu Pickles is a complete microservices, GitOps, observability, progressive-delivery, and AIOps project running on Microsoft Azure.
 
-> ### 🧭 Students: start here → [`student-guide.html`](student-guide.html)
-> One illustrated, step-by-step page that takes you from **your laptop** to the shop running on **Amazon EKS**, released with **blue-green and canary**, watched by **Prometheus and Grafana**, and explained by **Dude**, a multi-agent AIOps assistant on **Amazon Bedrock (Nova)**. It covers 16 stops, with copy buttons, diagrams, a progress tracker, troubleshooting and a cost table.
->
-> **How to open it:** GitHub shows `.html` files as source code, so open the guide in your browser instead:
-> - **Cloned the repo?** Double-click `student-guide.html` in the repo root, or run `start student-guide.html` (Windows), `open student-guide.html` (macOS) or `xdg-open student-guide.html` (Linux).
-> - **Not cloned?** Click **Code → Download ZIP**, unzip it, and double-click `student-guide.html`.
+## Start here
 
-> **The demo app is Telugu Pickles (తెలుగు పచ్చళ్ళు)**, an Indian veg & non-veg pickle store built as 6 microservices + React.
-> - Run it on your laptop: [`projects/telugu-pickles/LOCAL-SETUP.md`](projects/telugu-pickles/LOCAL-SETUP.md)
-> - Deploy it to AWS EKS with GitHub Actions + Argo CD: [`docs/CICD-EKS-GUIDE.md`](docs/CICD-EKS-GUIDE.md)
-> - How it is designed, built and deployed: [`docs/telugu-pickles-system-design.html`](docs/telugu-pickles-system-design.html) (open in a browser)
+- Local application: [`projects/telugu-pickles/LOCAL-SETUP.md`](projects/telugu-pickles/LOCAL-SETUP.md)
+- Azure deployment: [`projects/AzureInfrastructure/README.md`](projects/AzureInfrastructure/README.md)
+- Azure AIOps assistant: [`projects/aiops-assistant/README.md`](projects/aiops-assistant/README.md)
+- Azure service inventory and flows: [`docs/AZURE-SERVICE-MAP.md`](docs/AZURE-SERVICE-MAP.md)
 
----
+## Architecture
 
-## Welcome
-
-Hey everyone!
-
-Welcome to my DevOps + AI series where we build an end-to-end DevOps project with an AIOps integration.
-
-A lot of you have been asking: *"when are you going to share a full DevOps project?"*
-
-Well — here we are.
-
-In this series we will:
-
-- Build microservices locally
-- Use Claude and AI tools to assist development
-- Deploy everything step by step
-- Migrate the system to the cloud on AWS EKS
-- Set up a full CI/CD pipeline with GitHub Actions
-- Implement GitOps workflows with ArgoCD
-- Integrate AIOps capabilities with AWS Bedrock
-
-By the end of this series, you won't just know tools — you'll understand how real DevOps systems are designed and deployed.
-
----
-
-## Repository Structure
-
+```text
+Developer -> GitHub Actions (OIDC) -> Azure Container Registry
+                                      |
+                                      v
+Git commit <- image tags <- Azure CI  AKS <- Argo CD watches Git
+                                      |
+            +-------------------------+-------------------------+
+            |                         |                         |
+      Telugu Pickles            Prometheus/Grafana       Azure Monitor
+      7 app containers          app + business metrics   Log Analytics
+            |                                                   |
+      Azure Disk/Postgres                               Azure OpenAI AIOps
+                                                              |
+                                            logs + metrics + deployment agents
 ```
-devops-ai-playbook/
-├── student-guide.html             # START HERE: laptop -> EKS -> blue-green/canary -> Dude on Bedrock (open in browser)
-├── docs/
-│   ├── CICD-EKS-GUIDE.md          # Student guide: git push -> GitHub Actions -> EKS -> Argo CD -> Grafana
-│   ├── telugu-pickles-system-design.html  # End-to-end system design (open in browser)
-│   ├── part1-system-design.md     # System design foundations (Part 1)
-│   ├── part2-workflow.md          # Full workflow with AIOps (Part 2)
-│   └── claude-setup.md            # Claude Code + MCP server setup
+
+## Azure service mapping
+
+| Capability | Azure service |
+|---|---|
+| Kubernetes | Azure Kubernetes Service (AKS) |
+| Container images | Azure Container Registry (ACR) |
+| Network | Azure Virtual Network and subnet |
+| Public traffic | Azure Load Balancer through ingress-nginx |
+| Persistent database disk | Azure Disk CSI (`managed-csi`) |
+| Logs | Azure Monitor Container Insights + Log Analytics |
+| Metrics and dashboards | Prometheus + Grafana in AKS |
+| Identity | Microsoft Entra ID, managed identities, workload identity |
+| CI/CD authentication | GitHub OIDC; no stored Azure password |
+| GitOps | Argo CD |
+| Progressive delivery | Argo Rollouts |
+| AI models | Azure OpenAI |
+| Terraform state | Azure Blob Storage |
+| Alerts | Prometheus rules and Azure Monitor |
+
+## Repository structure
+
+```text
+.
+├── .github/workflows/
+│   ├── azure-infra.yml       # Terraform plan/apply/destroy
+│   ├── azure-ci.yml          # test, scan, build, push to ACR, update GitOps
+│   ├── azure-release.yml     # promote/abort/undo blue-green and canary releases
+│   └── security.yml          # Gitleaks and Trivy
 ├── projects/
-│   ├── telugu-pickles/            # The application: 6 services + React frontend (Part 3)
-│   │   ├── LOCAL-SETUP.md         #   Student guide: run it on your laptop
-│   │   └── docker-compose.yml     #   Local stack incl. Prometheus + Grafana
-│   ├── Infrastructure/            # Terraform: VPC, EKS, ECR, Argo CD, Grafana, CloudWatch, DNS
-│   │   └── bootstrap/             #   one-time: S3 state bucket + GitHub OIDC role (+ Route 53 zone)
-│   └── aiops-assistant/           # Dude: multi-agent AIOps on Bedrock Nova + Lambda (Part 4)
-├── gitops/
-│   ├── kustomization.yml          # Kustomize entry point (Argo CD deploys this; CI bumps image tags)
-│   └── k8s/                       # All Kubernetes manifests
-├── scripts/                       # helm-repos.sh, pre-destroy.sh
-└── .github/workflows/
-    ├── security.yml               # Gitleaks + Trivy (secrets, CVEs, IaC)
-    ├── infra.yml                  # Terraform plan/apply/destroy
-    └── ci.yml                     # test -> build -> scan -> push ECR -> update gitops/
+│   ├── telugu-pickles/       # React + six Node.js services + local Docker Compose
+│   ├── AzureInfrastructure/  # modular Terraform for Azure
+│   └── aiops-assistant/      # Azure OpenAI multi-agent API and Streamlit UI
+└── gitops/
+    ├── k8s/                  # cloud-neutral Kubernetes application resources
+    └── overlays/azure/       # AKS storage, ingress, images, and AIOps deployment
 ```
 
----
+## Local run
 
-## Series Structure
+```powershell
+cd projects\telugu-pickles
+docker compose up -d --build
+```
 
-### Claude Setup — AI Assistant Configuration
-[`docs/claude-setup.md`](docs/claude-setup.md)
+Open http://localhost:3000. Demo login: `demo@telugupickles.in` / `Pickle@123`.
 
-Before jumping into the project, this step walks through how Claude Code is configured as the AI assistant throughout this series.
+## Azure deployment flow
 
-Three things are set up:
+1. Run the one-time bootstrap to create recoverable Blob state and separate Terraform, image-CI, and release OIDC identities.
+2. Add bootstrap outputs to GitHub Actions secrets/variables.
+3. Run **Azure Infrastructure** to apply the Azure foundation first, then the Kubernetes/Helm platform.
+4. Run **Azure App CI** to push eight images and update the Azure GitOps overlay.
+5. Argo CD deploys the application automatically.
 
-**CLAUDE.md** — a project instruction file at the repo root that Claude reads automatically at the start of every session. It puts Claude in safe execution mode: explain what you're about to do and why before taking any action. This is important when working with live AWS infrastructure where silent commands can have real consequences.
-
-**MCP Servers** — background processes that extend Claude's built-in capabilities. Four servers are configured in `~/.claude/settings.json`:
-
-| Server | What it unlocks |
-|--------|----------------|
-| `awslabs.eks-mcp-server` | Query EKS clusters, inspect pods, stream logs, apply manifests |
-| `awslabs.terraform-mcp-server` | Run Terraform commands, search provider docs, run Checkov scans |
-| `awslabs.aws-pricing-mcp-server` | Live AWS pricing lookups and cost analysis reports |
-| `awslabs.core-mcp-server` | MCP orchestration layer (deprecated, kept for compatibility) |
-
-**Skills** — domain-specific knowledge packs that improve how Claude reasons about certain topics. The `terraform-skill` is installed, giving Claude deeper context for Terraform module patterns, testing strategies, security scanning, and CI/CD workflows specific to infrastructure-as-code.
-
----
-
-### Part 1 — System Design Foundations
-[`docs/part1-system-design.md`](docs/part1-system-design.md)
-
-We start with system design concepts specifically for cloud and DevOps. This is important whether you're a beginner, intermediate, or senior engineer — because companies don't choose tools randomly. They think about architecture patterns, deployment strategies, scalability, reliability, and cost tradeoffs.
-
-We cover 12 core system design pillars used in modern DevOps architectures, and connect each one directly to something running in this project.
-
----
-
-### Part 2 — Understanding the Workflow
-[`docs/part2-workflow.md`](docs/part2-workflow.md)
-
-Before writing any code or deployment configs, you need to understand how the entire system flows:
-
-- What services we're building and how they communicate
-- How the pipeline works
-- How code moves from developer → CI → deployment → production → AIOps
-
-This is where the full picture comes together — including how AI fits into the workflow.
-
----
-
-### Part 3 — DevOps Project Implementation
-[`projects/telugu-pickles/LOCAL-SETUP.md`](projects/telugu-pickles/LOCAL-SETUP.md) (local) · [`docs/telugu-pickles-system-design.html`](docs/telugu-pickles-system-design.html) (runbook to EKS)
-
-Then we actually build the project. You'll see:
-
-- Docker containers and Docker Compose
-- Kubernetes deployments on EKS
-- CI/CD pipelines with GitHub Actions
-- GitOps automation with ArgoCD
-- Infrastructure provisioning with Terraform
-- Observability with Prometheus and Grafana
-
----
-
-### Part 4 — AIOps Integration
-[`projects/aiops-assistant/README.md`](projects/aiops-assistant/README.md) · hands-on: stops 12–14 of [`student-guide.html`](student-guide.html)
-
-Finally, we explore how AI helps with:
-
-- Monitoring and anomaly detection
-- Log analysis at scale
-- Incident response automation
-- DevOps troubleshooting
-
-Because modern DevOps is no longer just automation — it's **automation + intelligence**.
-
----
-
-## Bonus Challenge
-
-You'll get access to this entire repository.
-
-But there's a catch.
-
-The repository includes **intentional issues and troubleshooting tasks**.
-
-Why? Because AI has made things easier. But if you want to grow as an engineer, you must learn how to break systems, debug systems, and fix systems.
-
-Once you implement the project:
-
-1. Fork the repository
-2. Deploy the system
-3. Troubleshoot the issues
-4. Share what you learned — and tag me so I know you're building along
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Application | React, Node.js, PostgreSQL |
-| Containers | Docker, Docker Compose |
-| Orchestration | Kubernetes (AWS EKS) |
-| Infrastructure | Terraform |
-| CI/CD | GitHub Actions (OIDC to AWS, no stored keys) |
-| Security scanning | Gitleaks + Trivy |
-| DNS / TLS | Route 53 + ACM (GoDaddy domain delegated) |
-| GitOps | ArgoCD + Kustomize |
-| Monitoring | Prometheus + Grafana |
-| Log Forwarding | AWS Fluent Bit → CloudWatch Logs (+ metric filter & alarm) |
-| Progressive delivery | Argo Rollouts (blue-green frontend, canary catalog-service) |
-| AIOps | Dude: Amazon Bedrock Converse API multi-agent (Nova Pro + Nova Lite) on AWS Lambda |
-| AI Assistant | Claude Code + MCP Servers |
+Destroy the Azure Infrastructure workflow when the lab is finished to stop AKS and related charges.

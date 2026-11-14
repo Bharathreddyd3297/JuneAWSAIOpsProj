@@ -1,0 +1,28 @@
+# Cloud-neutral application resources. Cloud overlays add storage and ingress patches.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - platform/config.yml
+  - database/postgres.yml
+  - apps/auth-service.yml
+  - apps/catalog-service.yml
+  - apps/cart-service.yml
+  - apps/order-service.yml
+  - apps/payment-service.yml
+  - apps/gateway.yml
+  - apps/frontend.yml
+  - apps/analysis.yml
+  - apps/autoscaling.yml
+  - monitoring/servicemonitor.yml
+
+configMapGenerator:
+  - name: telugu-pickles-dashboard
+    namespace: monitoring
+    files:
+      - monitoring/telugu-pickles-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+generatorOptions:
+  disableNameSuffixHash: true

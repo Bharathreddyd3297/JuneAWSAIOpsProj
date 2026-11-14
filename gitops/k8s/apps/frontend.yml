@@ -1,8 +1,8 @@
 # frontend — React SPA served by nginx; nginx proxies /api to the gateway.
 #
 # BLUE-GREEN release (Argo Rollouts):
-#   active  (blue)  = Service "frontend"          -> ALB port 80   (what shoppers see)
-#   preview (green) = Service "frontend-preview"  -> ALB port 8080 (the new version, for testing)
+#   active  (blue)  = Service "frontend" -> ingress-nginx/Azure Load Balancer
+#   preview (green) = private Service "frontend-preview" (test with kubectl port-forward)
 # A new image starts the green pods next to the blue ones. They wait, fully running, until
 # someone PROMOTES (GitHub Actions -> "Release control", or kubectl argo rollouts promote frontend).
 # Promotion flips the "frontend" Service to green in one step; blue stays 2 more minutes for instant rollback.
@@ -98,10 +98,7 @@ spec:
       port: 80
       targetPort: http
 ---
-# Public entry point: the AWS Load Balancer Controller turns this into an
-# internet-facing Application Load Balancer in the public subnets.
-# No host rule -> works on the ALB's own hostname. When a domain is configured,
-# Terraform's Argo CD Application patches in shop.<domain> + HTTPS (ACM).
+# Public entry point through ingress-nginx and an Azure Load Balancer.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -111,13 +108,10 @@ metadata:
     app: frontend
     app.kubernetes.io/part-of: telugu-pickles
   annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: telugu-pickles
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
-    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
 spec:
-  ingressClassName: alb
+  ingressClassName: nginx
   rules:
     - http:
         paths:
@@ -126,33 +120,5 @@ spec:
             backend:
               service:
                 name: frontend
-                port:
-                  name: http
----
-# Same ALB, port 8080 -> the green (preview) version. Test it here before promoting.
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: frontend-preview
-  namespace: telugu-pickles
-  labels:
-    app: frontend
-    app.kubernetes.io/part-of: telugu-pickles
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: telugu-pickles
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":8080}]'
-    alb.ingress.kubernetes.io/healthcheck-path: /healthz
-spec:
-  ingressClassName: alb
-  rules:
-    - http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend-preview
                 port:
                   name: http

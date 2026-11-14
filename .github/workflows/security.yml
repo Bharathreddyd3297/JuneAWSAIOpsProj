@@ -13,7 +13,7 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - "gitops/kustomization.yml" # image-tag bumps by the CI bot
+      - "gitops/overlays/azure/kustomization.yml" # image-tag bumps by the Azure CI bot
   schedule:
     - cron: "30 3 * * 1" # Mondays 03:30 UTC: new CVEs appear even when code doesn't change
   workflow_dispatch:
@@ -26,9 +26,8 @@ permissions:
 env:
   GITLEAKS_VERSION: "8.30.1"
   # Pinned by digest: a re-pushed tag cannot change what runs here
-  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
-  # Mirror on ECR Public avoids GHCR rate limits ("TOOMANYREQUESTS") on shared runners
-  TRIVY_DB: public.ecr.aws/aquasecurity/trivy-db:2
+  TRIVY_IMAGE: aquasec/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+  TRIVY_DB: ghcr.io/aquasecurity/trivy-db:2
 
 jobs:
   gitleaks:
@@ -76,10 +75,10 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" config . \
             --severity HIGH,CRITICAL --exit-code 0 \
-            --skip-dirs projects/Infrastructure/.terraform
+            --skip-dirs projects/AzureInfrastructure/.terraform
           docker run --rm -v "$PWD:/src" -w /src "$TRIVY_IMAGE" config . \
             --severity HIGH,CRITICAL --exit-code 0 --quiet \
-            --skip-dirs projects/Infrastructure/.terraform \
+            --skip-dirs projects/AzureInfrastructure/.terraform \
             --format sarif --output trivy-config.sarif
 
       - name: Upload to Code scanning

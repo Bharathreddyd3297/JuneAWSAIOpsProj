@@ -1,0 +1,214 @@
+name: Azure Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "projects/AzureInfrastructure/**"
+      - "scripts/pre-destroy-azure.sh"
+      - ".github/workflows/azure-infra.yml"
+  pull_request:
+    paths:
+      - "projects/AzureInfrastructure/**"
+      - "scripts/pre-destroy-azure.sh"
+      - ".github/workflows/azure-infra.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        options: [foundation-plan, plan, apply, destroy]
+        default: plan
+      confirm:
+        description: 'Type "destroy" to confirm destruction'
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_DIR: projects/AzureInfrastructure
+  TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_location: ${{ vars.AZURE_LOCATION || 'centralindia' }}
+  TF_VAR_resource_group_name: ${{ vars.AZURE_RESOURCE_GROUP || 'telugu-pickles-azure' }}
+  TF_VAR_cluster_name: ${{ vars.AZURE_AKS_CLUSTER || 'telugu-pickles-aks' }}
+  TF_VAR_node_vm_size: ${{ vars.AZURE_AKS_NODE_VM_SIZE || 'Standard_D2s_v3' }}
+  TF_VAR_node_count: ${{ vars.AZURE_AKS_NODE_COUNT || '2' }}
+  TF_VAR_node_min_count: ${{ vars.AZURE_AKS_NODE_MIN_COUNT || '2' }}
+  TF_VAR_node_max_count: ${{ vars.AZURE_AKS_NODE_MAX_COUNT || '3' }}
+  TF_VAR_github_identity_resource_group: ${{ vars.AZURE_TFSTATE_RESOURCE_GROUP || 'telugu-pickles-tfstate' }}
+  TF_VAR_aks_admin_principal_ids: ${{ vars.AZURE_AKS_ADMIN_PRINCIPAL_IDS || '[]' }}
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_TERRAFORM_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  security:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security.yml
+
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.7
+          terraform_wrapper: false
+      - name: Offline format and validation
+        run: |
+          terraform init -backend=false
+          terraform fmt -check -recursive
+          terraform validate
+
+  terraform:
+    if: github.event_name != 'pull_request'
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Azure configuration
+        working-directory: .
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_TERRAFORM_CLIENT_ID }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          STATE_RG: ${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}
+          STATE_ACCOUNT: ${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}
+        run: |
+          for value in CLIENT_ID TENANT_ID SUBSCRIPTION_ID STATE_RG STATE_ACCOUNT; do
+            if [ -z "${!value}" ]; then
+              echo "::error::$value is missing. Run projects/AzureInfrastructure/bootstrap first and add its outputs to GitHub Actions secrets/variables."
+              exit 1
+            fi
+          done
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_TERRAFORM_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.7
+          terraform_wrapper: false
+
+      - uses: azure/use-kubelogin@v1
+        with:
+          kubelogin-version: v0.2.22
+
+      - name: Terraform init
+        env:
+          STATE_RG: ${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}
+          STATE_ACCOUNT: ${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}
+          STATE_CONTAINER: ${{ vars.AZURE_TFSTATE_CONTAINER || 'tfstate' }}
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=$STATE_RG" \
+            -backend-config="storage_account_name=$STATE_ACCOUNT" \
+            -backend-config="container_name=$STATE_CONTAINER" \
+            -backend-config="key=telugu-pickles/azure.tfstate" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Format and validate
+        run: |
+          terraform fmt -check -recursive
+          terraform validate
+
+      - name: Terraform foundation plan
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && contains(fromJSON('["foundation-plan","apply"]'), inputs.action))
+        run: |
+          terraform plan -lock-timeout=10m \
+            -target=module.network \
+            -target=module.registry \
+            -target=module.aks \
+            -target=azurerm_role_assignment.acr_pull \
+            -target=azurerm_role_assignment.terraform_cluster_user \
+            -target=azurerm_role_assignment.terraform_rbac_admin \
+            -target=azurerm_role_assignment.release_cluster_user \
+            -target=azurerm_role_assignment.release_rbac_writer \
+            -target=azurerm_role_assignment.operator_cluster_user \
+            -target=azurerm_role_assignment.operator_rbac_admin \
+            -out=foundation.tfplan
+
+      - name: Terraform foundation apply
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        run: terraform apply -lock-timeout=10m foundation.tfplan
+
+      - name: Wait for AKS RBAC propagation
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        run: |
+          az aks get-credentials \
+            --resource-group "$TF_VAR_resource_group_name" \
+            --name "$TF_VAR_cluster_name" \
+            --overwrite-existing
+          kubelogin convert-kubeconfig --login azurecli
+          for attempt in $(seq 1 20); do
+            if kubectl auth can-i create namespaces >/dev/null 2>&1; then
+              exit 0
+            fi
+            echo "Waiting for AKS RBAC assignment ($attempt/20)..."
+            sleep 15
+          done
+          echo "::error::AKS RBAC assignment did not propagate within five minutes."
+          exit 1
+
+      - name: Terraform platform plan
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && contains(fromJSON('["plan","apply"]'), inputs.action))
+        run: terraform plan -lock-timeout=10m -out=platform.tfplan
+
+      - name: Terraform platform apply
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        run: terraform apply -lock-timeout=10m platform.tfplan
+
+      - name: Deployment summary
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+        run: |
+          echo "### Azure platform ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Resource group: $(terraform output -raw resource_group_name)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- AKS: $(terraform output -raw cluster_name)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ACR: $(terraform output -raw acr_name)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Next: run the Azure App CI workflow to push images." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove Azure platform
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy' && inputs.confirm == 'destroy'
+        working-directory: .
+        run: |
+          ./scripts/pre-destroy-azure.sh "$TF_VAR_resource_group_name" "$TF_VAR_cluster_name"
+          terraform -chdir="$TF_DIR" destroy -auto-approve -lock-timeout=10m

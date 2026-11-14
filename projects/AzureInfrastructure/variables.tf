@@ -33,7 +33,7 @@ variable "cluster_name" {
 variable "node_vm_size" {
   description = "AKS node VM size"
   type        = string
-  default     = "Standard_D2s_v5"
+  default     = "Standard_D2s_v3"
 }
 
 variable "node_count" {
@@ -61,7 +61,7 @@ variable "node_min_count" {
 variable "node_max_count" {
   description = "Maximum node count used by the AKS cluster autoscaler"
   type        = number
-  default     = 5
+  default     = 3
 
   validation {
     condition     = var.node_max_count >= var.node_min_count

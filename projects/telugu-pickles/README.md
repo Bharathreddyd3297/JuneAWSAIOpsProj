@@ -41,15 +41,15 @@ services/            one package + one Dockerfile for all 6 services
   test/              node:test unit tests  (npm test)
 frontend/            React + Vite, nginx template that proxies /api
 observability/       Prometheus config + Grafana provisioning & dashboard
-scripts/             smoke-test.sh, push-to-ecr.sh, build-dashboard.js
+scripts/             smoke-test.sh, push-to-acr.sh, build-dashboard.js
 ```
 
-**Deploy to AWS EKS** (GitHub Actions + Terraform + Argo CD): [`docs/CICD-EKS-GUIDE.md`](../../docs/CICD-EKS-GUIDE.md).
+**Deploy to Azure AKS** (GitHub Actions + Terraform + Argo CD): [`projects/AzureInfrastructure/README.md`](../AzureInfrastructure/README.md).
 
-Kubernetes manifests live in [`/gitops`](../../gitops), Terraform in [`/projects/Infrastructure`](../Infrastructure),
-CI in [`/.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
+Kubernetes manifests live in [`/gitops`](../../gitops), Terraform in [`/projects/AzureInfrastructure`](../AzureInfrastructure),
+CI in [`/.github/workflows/azure-ci.yml`](../../.github/workflows/azure-ci.yml).
 
-**Release strategies on EKS** (Argo Rollouts): `frontend` is **blue-green** (preview on ALB port 8080, promoted from
+**Release strategies on AKS** (Argo Rollouts): `frontend` is **blue-green** (preview through a private service, promoted from
 *Actions → Release control*), and `catalog-service` is **canary** with an automatic Prometheus error check.
 The other services use rolling updates. See [`docs/reference/PROGRESSIVE-DELIVERY.md`](../../docs/reference/PROGRESSIVE-DELIVERY.md).
 
@@ -63,6 +63,6 @@ The other services use rolling updates. See [`docs/reference/PROGRESSIVE-DELIVER
 | `CHAOS_LATENCY_MS=1500` | any | added latency |
 
 Locally: `PAYMENT_DECLINE_RATE=0.5 docker compose up -d payment-service`.
-On EKS: edit `gitops/k8s/platform/config.yml`, commit, Argo CD syncs (restart pods to pick up env).
+On AKS: edit `gitops/k8s/platform/config.yml`, commit, Argo CD syncs (restart pods to pick up env).
 
 After injecting chaos, ask the AIOps assistant Kira to explain it: see [projects/aiops-assistant](../aiops-assistant/README.md).
