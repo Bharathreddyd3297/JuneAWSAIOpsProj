@@ -1,0 +1,9 @@
+variable "resource_group_name" { type = string }
+variable "location" { type = string }
+variable "aks_oidc_issuer_url" { type = string }
+variable "log_analytics_workspace_id" { type = string }
+variable "log_analytics_customer_id" { type = string }
+variable "model_name" { type = string }
+variable "model_version" { type = string }
+variable "model_capacity" { type = number }
+variable "app_namespace" { type = string }
