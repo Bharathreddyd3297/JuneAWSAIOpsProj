@@ -15,13 +15,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "projects/telugu-pickles/**"
-      - ".github/workflows/ci.yml"
+      - master #"projects/telugu-pickles/**"
+               #".github/workflows/ci.yml"
       # gitops/ is NOT listed: the bot's tag-bump commit must not re-trigger this pipeline
   pull_request:
     paths:
-      - "projects/telugu-pickles/**"
-      - ".github/workflows/ci.yml"
+      - master #"projects/telugu-pickles/**"
+               #".github/workflows/ci.yml"
   workflow_dispatch:
 
 permissions:
