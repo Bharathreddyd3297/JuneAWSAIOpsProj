@@ -181,4 +181,4 @@ Once you implement the project:
 | AIOps | Dude: Amazon Bedrock Converse API multi-agent (Nova Pro + Nova Lite) on AWS Lambda |
 | AI Assistant | Claude Code + MCP Servers |
 
-<!-- CI pipeline test: 15-Nov-2026 -->
+<!-- CI pipeline test: 15-Nov-2026  try to build-->
