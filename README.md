@@ -180,3 +180,5 @@ Once you implement the project:
 | Progressive delivery | Argo Rollouts (blue-green frontend, canary catalog-service) |
 | AIOps | Dude: Amazon Bedrock Converse API multi-agent (Nova Pro + Nova Lite) on AWS Lambda |
 | AI Assistant | Claude Code + MCP Servers |
+
+<!-- CI pipeline test: 15-Nov-2026 -->
